@@ -33,9 +33,18 @@ class SearchController extends Controller
      */
     public function search(Request $request)
     {
-        // Validate the request
+        // Check if any filter is provided
+        $hasFilters = $request->filled('chat_id')
+            || $request->filled('date_from')
+            || $request->filled('date_to')
+            || $request->filled('participant_id')
+            || $request->filled('media_type')
+            || $request->filled('tag_id')
+            || $request->filled('only_stories');
+
+        // Validate the request - query required only if no filters
         $request->validate([
-            'query' => 'required|string|min:2|max:255',
+            'query' => ($hasFilters ? 'nullable' : 'required') . '|string|max:255',
             'chat_id' => 'nullable|exists:chats,id',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
@@ -51,14 +60,21 @@ class SearchController extends Controller
         if (empty($userChatIds)) {
             $results = collect();
         } else {
-            // Use Laravel Scout for full-text search
-            $query = Message::search($request->input('query'))
-                ->query(function ($builder) use ($userChatIds) {
-                    // Ensure user can only search their own chats
-                    $builder->whereIn('chat_id', $userChatIds);
-                });
+            // If no search query, use query builder instead of Scout
+            if (empty($request->input('query'))) {
+                $query = Message::query()->whereIn('chat_id', $userChatIds);
+                $useScout = false;
+            } else {
+                // Use Laravel Scout for full-text search
+                $query = Message::search($request->input('query'))
+                    ->query(function ($builder) use ($userChatIds) {
+                        // Ensure user can only search their own chats
+                        $builder->whereIn('chat_id', $userChatIds);
+                    });
+                $useScout = true;
+            }
 
-            // Apply filters
+            // Apply filters (different syntax for Scout vs Query Builder)
             if ($request->filled('chat_id')) {
                 // Verify user owns this chat
                 if (in_array($request->chat_id, $userChatIds)) {
@@ -66,12 +82,24 @@ class SearchController extends Controller
                 }
             }
 
-            if ($request->filled('date_from')) {
-                $query->where('sent_at', '>=', strtotime($request->date_from));
-            }
+            if ($useScout) {
+                // Scout uses timestamp filters
+                if ($request->filled('date_from')) {
+                    $query->where('sent_at', '>=', strtotime($request->date_from));
+                }
 
-            if ($request->filled('date_to')) {
-                $query->where('sent_at', '<=', strtotime($request->date_to));
+                if ($request->filled('date_to')) {
+                    $query->where('sent_at', '<=', strtotime($request->date_to));
+                }
+            } else {
+                // Query builder uses date strings
+                if ($request->filled('date_from')) {
+                    $query->whereDate('sent_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('sent_at', '<=', $request->date_to);
+                }
             }
 
             if ($request->filled('only_stories') && $request->only_stories) {

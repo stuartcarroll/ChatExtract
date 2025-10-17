@@ -104,28 +104,45 @@
 
                                 <!-- Tags Section -->
                                 @if($tags->isNotEmpty())
-                                <div class="mt-2 pt-2 border-t border-gray-100">
-                                    <!-- Show existing tags -->
-                                    @if($item->message->tags->isNotEmpty())
+                                <div class="mt-2 pt-2 border-t border-gray-100" x-data="{ showTags: false }">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs text-gray-500">Tags:</span>
+                                        <button type="button" @click="showTags = !showTags" class="text-xs text-blue-600 hover:text-blue-800">
+                                            <span x-show="!showTags">+ Add</span>
+                                            <span x-show="showTags">Hide</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Current tags -->
                                     <div class="flex flex-wrap gap-1 mb-1">
                                         @foreach($item->message->tags as $tag)
-                                        <span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                                            {{ $tag->name }}
-                                        </span>
+                                        <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                            <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition">
+                                                {{ $tag->name }}
+                                                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </form>
                                         @endforeach
                                     </div>
-                                    @endif
 
-                                    <!-- Tag dropdown -->
-                                    <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="tag-form">
-                                        @csrf
-                                        <select name="tag_id" onchange="this.form.submit()" class="w-full text-xs rounded border-gray-300 py-1">
-                                            <option value="">+ Add tag...</option>
-                                            @foreach($tags as $tag)
-                                            <option value="{{ $tag->id }}">{{ $tag->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </form>
+                                    <!-- Available tags (collapsible) -->
+                                    <div x-show="showTags" x-collapse class="flex flex-wrap gap-1 pt-1">
+                                        @foreach($tags as $tag)
+                                            @if(!$item->message->tags->contains($tag->id))
+                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                                @csrf
+                                                <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
+                                                    + {{ $tag->name }}
+                                                </button>
+                                            </form>
+                                            @endif
+                                        @endforeach
+                                    </div>
                                 </div>
                                 @endif
                             </div>
