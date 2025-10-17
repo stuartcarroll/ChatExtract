@@ -83,9 +83,18 @@ class User extends Authenticatable
     /**
      * Get all chats the user has access to (owned + shared).
      */
-    public function accessibleChats(): BelongsToMany
+    public function accessibleChats()
     {
-        return $this->belongsToMany(Chat::class)
-            ->union($this->ownedChats());
+        // Get owned chat IDs
+        $ownedIds = $this->ownedChats()->pluck('id');
+
+        // Get shared chat IDs
+        $sharedIds = $this->chats()->pluck('id');
+
+        // Merge and get unique IDs
+        $allChatIds = $ownedIds->merge($sharedIds)->unique();
+
+        // Return query builder for all accessible chats
+        return Chat::whereIn('id', $allChatIds);
     }
 }
