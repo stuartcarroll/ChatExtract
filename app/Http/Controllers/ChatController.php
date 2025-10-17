@@ -126,35 +126,43 @@ class ChatController extends Controller
         $type = $request->get('type', 'all');
 
         // Query media with messages and participants
-        $query = \App\Models\Media::whereHas('message', function ($q) use ($chat) {
-            $q->where('chat_id', $chat->id);
-        })->with(['message.participant']);
+        $query = \App\Models\Media::query()
+            ->join('messages', 'media.message_id', '=', 'messages.id')
+            ->where('messages.chat_id', $chat->id)
+            ->with(['message.participant']);
 
         // Apply type filter
         if ($type !== 'all') {
-            $query->where('type', $type);
+            $query->where('media.type', $type);
         }
 
-        // Order by message date (newest first)
-        $media = $query->join('messages', 'media.message_id', '=', 'messages.id')
+        // Order by message date (newest first) and select only media columns
+        $media = $query
             ->orderBy('messages.sent_at', 'desc')
             ->select('media.*')
             ->paginate(24);
 
         // Get media counts by type
         $counts = [
-            'all' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
-                $q->where('chat_id', $chat->id);
-            })->count(),
-            'image' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
-                $q->where('chat_id', $chat->id);
-            })->where('type', 'image')->count(),
-            'video' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
-                $q->where('chat_id', $chat->id);
-            })->where('type', 'video')->count(),
-            'audio' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
-                $q->where('chat_id', $chat->id);
-            })->where('type', 'audio')->count(),
+            'all' => \App\Models\Media::query()
+                ->join('messages', 'media.message_id', '=', 'messages.id')
+                ->where('messages.chat_id', $chat->id)
+                ->count(),
+            'image' => \App\Models\Media::query()
+                ->join('messages', 'media.message_id', '=', 'messages.id')
+                ->where('messages.chat_id', $chat->id)
+                ->where('media.type', 'image')
+                ->count(),
+            'video' => \App\Models\Media::query()
+                ->join('messages', 'media.message_id', '=', 'messages.id')
+                ->where('messages.chat_id', $chat->id)
+                ->where('media.type', 'video')
+                ->count(),
+            'audio' => \App\Models\Media::query()
+                ->join('messages', 'media.message_id', '=', 'messages.id')
+                ->where('messages.chat_id', $chat->id)
+                ->where('media.type', 'audio')
+                ->count(),
         ];
 
         return view('chats.gallery', compact('chat', 'media', 'type', 'counts'));
