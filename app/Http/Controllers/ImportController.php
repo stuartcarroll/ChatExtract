@@ -151,7 +151,7 @@ class ImportController extends Controller
     protected function processMediaFiles(Chat $chat, string $mediaPath): void
     {
         // Create permanent storage directory for this chat's media
-        $chatMediaDir = "media/chat_{$chat->id}";
+        $chatMediaDir = "chat_{$chat->id}";
         Storage::disk('media')->makeDirectory($chatMediaDir);
 
         // Get all media files (excluding .txt files)
@@ -173,6 +173,9 @@ class ImportController extends Controller
                     file_get_contents($filePath)
                 );
 
+                // Store the path relative to storage/app/public for asset() access
+                $publicPath = 'media/' . $destinationPath;
+
                 // Find the message that references this media file
                 $message = Message::where('chat_id', $chat->id)
                     ->where('content', 'LIKE', '%' . $filename . '%')
@@ -184,7 +187,7 @@ class ImportController extends Controller
                         'message_id' => $message->id,
                         'type' => $type,
                         'filename' => $filename,
-                        'file_path' => $destinationPath,
+                        'file_path' => $publicPath,
                         'file_size' => $fileSize,
                         'mime_type' => $mimeType,
                     ]);
