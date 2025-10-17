@@ -59,7 +59,9 @@ class ProcessChatImportJob implements ShouldQueue
                 mkdir($extractPath, 0755, true);
 
                 $zip = new \ZipArchive();
-                if ($zip->open($this->filePath) === true) {
+                $zipStatus = $zip->open($this->filePath);
+
+                if ($zipStatus === true) {
                     $zip->extractTo($extractPath);
                     $zip->close();
 
@@ -71,7 +73,29 @@ class ProcessChatImportJob implements ShouldQueue
 
                     $txtFilePath = $files[0];
                 } else {
-                    throw new \Exception('Failed to extract ZIP file');
+                    // Get zip error message
+                    $zipErrors = [
+                        \ZipArchive::ER_EXISTS => 'File already exists',
+                        \ZipArchive::ER_INCONS => 'Zip archive inconsistent',
+                        \ZipArchive::ER_INVAL => 'Invalid argument',
+                        \ZipArchive::ER_MEMORY => 'Malloc failure',
+                        \ZipArchive::ER_NOENT => 'No such file',
+                        \ZipArchive::ER_NOZIP => 'Not a zip archive',
+                        \ZipArchive::ER_OPEN => 'Can\'t open file',
+                        \ZipArchive::ER_READ => 'Read error',
+                        \ZipArchive::ER_SEEK => 'Seek error',
+                    ];
+
+                    $errorMsg = $zipErrors[$zipStatus] ?? 'Unknown error';
+                    Log::error('ZIP extraction failed', [
+                        'file' => $this->filePath,
+                        'error_code' => $zipStatus,
+                        'error_msg' => $errorMsg,
+                        'file_exists' => file_exists($this->filePath),
+                        'file_size' => file_exists($this->filePath) ? filesize($this->filePath) : 0,
+                        'is_readable' => file_exists($this->filePath) ? is_readable($this->filePath) : false,
+                    ]);
+                    throw new \Exception("Failed to extract ZIP file: $errorMsg (code: $zipStatus)");
                 }
             } else {
                 $txtFilePath = $this->filePath;

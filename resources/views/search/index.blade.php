@@ -70,7 +70,7 @@
                                 </div>
 
                                 <!-- Tag Filter -->
-                                @if (isset($tags) && $tags->isNotEmpty())
+                                @if (isset($tags) && (is_array($tags) ? count($tags) > 0 : $tags->isNotEmpty()))
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">Tag</label>
                                     <select name="tag_id" class="w-full text-sm rounded-md border-gray-300">
