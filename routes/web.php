@@ -28,6 +28,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/chats/{chat}/filter', [ChatController::class, 'filter'])->name('chats.filter');
     Route::get('/chats/{chat}/gallery', [ChatController::class, 'gallery'])->name('chats.gallery');
 
+    // Global Gallery
+    Route::get('/gallery', [App\Http\Controllers\GalleryController::class, 'index'])->name('gallery.index');
+
     // Import routes
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');

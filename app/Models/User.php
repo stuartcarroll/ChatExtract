@@ -79,4 +79,13 @@ class User extends Authenticatable
     {
         return $this->hasMany(ImportProgress::class);
     }
+
+    /**
+     * Get all chats the user has access to (owned + shared).
+     */
+    public function accessibleChats(): BelongsToMany
+    {
+        return $this->belongsToMany(Chat::class)
+            ->union($this->ownedChats());
+    }
 }

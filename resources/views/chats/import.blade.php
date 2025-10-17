@@ -153,24 +153,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- PHP.ini Configuration Note -->
-            <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold mb-4">Server Configuration for Large Files</h3>
-                    <p class="text-sm text-gray-600 mb-2">
-                        To allow uploads up to 10GB, ensure your php.ini has these settings:
-                    </p>
-                    <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto"><code>upload_max_filesize = 10240M
-post_max_size = 10240M
-max_execution_time = 600
-max_input_time = 600
-memory_limit = 2048M</code></pre>
-                    <p class="text-xs text-gray-500 mt-2">
-                        Note: You may need to restart your web server after changing these settings.
-                    </p>
-                </div>
-            </div>
         </div>
     </div>
 
