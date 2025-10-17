@@ -36,7 +36,7 @@ class ImportController extends Controller
     {
         // Validate the request
         $request->validate([
-            'chat_file' => 'required|file|mimes:txt|max:102400', // Max 100MB
+            'chat_file' => 'required|file|mimes:txt,zip|max:10485760', // Max 10GB (10240MB)
             'chat_name' => 'required|string|max:255',
             'chat_description' => 'nullable|string|max:1000',
         ]);
@@ -47,6 +47,31 @@ class ImportController extends Controller
             // Get the uploaded file
             $file = $request->file('chat_file');
             $filePath = $file->getRealPath();
+
+            // Handle ZIP files
+            if ($file->getClientOriginalExtension() === 'zip') {
+                $extractPath = storage_path('app/temp/' . Str::uuid());
+                mkdir($extractPath, 0755, true);
+
+                $zip = new \ZipArchive();
+                if ($zip->open($filePath) === true) {
+                    $zip->extractTo($extractPath);
+                    $zip->close();
+
+                    // Find the .txt file in the extracted content
+                    $files = glob($extractPath . '/*.txt');
+                    if (empty($files)) {
+                        throw new \Exception('No .txt file found in ZIP archive');
+                    }
+
+                    $filePath = $files[0];
+
+                    // Store media files directory for later processing
+                    $mediaPath = $extractPath;
+                } else {
+                    throw new \Exception('Failed to extract ZIP file');
+                }
+            }
 
             // Parse the chat file
             $messages = $this->parser->parseFile($filePath);
@@ -70,13 +95,49 @@ class ImportController extends Controller
 
             DB::commit();
 
+            // Cleanup temporary extraction directory if it was a ZIP
+            if (isset($extractPath) && file_exists($extractPath)) {
+                $this->deleteDirectory($extractPath);
+            }
+
             return redirect()->route('chats.show', $chat)
                 ->with('success', "Successfully imported {$importedCount} messages.");
         } catch (\Exception $e) {
             DB::rollBack();
 
+            // Cleanup on error
+            if (isset($extractPath) && file_exists($extractPath)) {
+                $this->deleteDirectory($extractPath);
+            }
+
             return back()->withErrors(['chat_file' => 'Error importing chat: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Recursively delete a directory.
+     */
+    protected function deleteDirectory(string $dir): bool
+    {
+        if (!file_exists($dir)) {
+            return true;
+        }
+
+        if (!is_dir($dir)) {
+            return unlink($dir);
+        }
+
+        foreach (scandir($dir) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+
+            if (!$this->deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) {
+                return false;
+            }
+        }
+
+        return rmdir($dir);
     }
 
     /**
