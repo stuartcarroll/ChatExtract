@@ -22,17 +22,15 @@
                             <span id="status-badge" class="px-3 py-1 rounded-full text-sm font-semibold
                                 @if($progress->status === 'completed') bg-green-100 text-green-800
                                 @elseif($progress->status === 'failed') bg-red-100 text-red-800
-                                @elseif($progress->status === 'processing') bg-blue-100 text-blue-800
+                                @elseif(in_array($progress->status, ['uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media'])) bg-blue-100 text-blue-800
                                 @else bg-gray-100 text-gray-800
                                 @endif">
-                                <span id="status-text">{{ ucfirst($progress->status) }}</span>
+                                <span id="status-text">{{ str_replace('_', ' ', ucfirst($progress->status)) }}</span>
                             </span>
-                            @if($progress->status === 'processing')
-                                <svg class="animate-spin ml-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            @endif
+                            <svg id="status-spinner" class="animate-spin ml-3 h-5 w-5 text-blue-500 {{ in_array($progress->status, ['uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media']) ? '' : 'hidden' }}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
                         </div>
                     </div>
 
@@ -123,20 +121,29 @@
             fetch(`/import/${progressId}/status`)
                 .then(response => response.json())
                 .then(data => {
-                    // Update status
-                    document.getElementById('status-text').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                    // Update status with formatted text
+                    const statusText = data.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    document.getElementById('status-text').textContent = statusText;
 
                     // Update status badge colors
                     const badge = document.getElementById('status-badge');
                     badge.className = 'px-3 py-1 rounded-full text-sm font-semibold';
+                    const spinner = document.getElementById('status-spinner');
+
+                    const activeStatuses = ['uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media'];
+
                     if (data.status === 'completed') {
                         badge.classList.add('bg-green-100', 'text-green-800');
+                        spinner.classList.add('hidden');
                     } else if (data.status === 'failed') {
                         badge.classList.add('bg-red-100', 'text-red-800');
-                    } else if (data.status === 'processing') {
+                        spinner.classList.add('hidden');
+                    } else if (activeStatuses.includes(data.status)) {
                         badge.classList.add('bg-blue-100', 'text-blue-800');
+                        spinner.classList.remove('hidden');
                     } else {
                         badge.classList.add('bg-gray-100', 'text-gray-800');
+                        spinner.classList.add('hidden');
                     }
 
                     // Update messages progress
@@ -180,7 +187,8 @@
         }
 
         // Start polling if still in progress
-        if (currentStatus === 'pending' || currentStatus === 'processing') {
+        const activeStatuses = ['pending', 'uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media'];
+        if (activeStatuses.includes(currentStatus)) {
             pollInterval = setInterval(updateProgress, 2000); // Poll every 2 seconds
         }
     </script>

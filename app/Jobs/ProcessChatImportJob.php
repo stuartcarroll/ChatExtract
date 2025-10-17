@@ -33,7 +33,7 @@ class ProcessChatImportJob implements ShouldQueue
         public string $chatName,
         public ?string $chatDescription,
         public int $userId,
-        public ?string $extractPath = null
+        public bool $isZip = false
     ) {}
 
     /**
@@ -48,14 +48,38 @@ class ProcessChatImportJob implements ShouldQueue
             return;
         }
 
-        try {
-            $progress->update([
-                'status' => 'processing',
-                'started_at' => now(),
-            ]);
+        $extractPath = null;
 
-            // Parse the chat file
-            $messages = $parser->parseFile($this->filePath);
+        try {
+            // STAGE 1: Extract ZIP if needed
+            if ($this->isZip) {
+                $progress->update(['status' => 'extracting']);
+
+                $extractPath = storage_path('app/temp/' . Str::uuid());
+                mkdir($extractPath, 0755, true);
+
+                $zip = new \ZipArchive();
+                if ($zip->open($this->filePath) === true) {
+                    $zip->extractTo($extractPath);
+                    $zip->close();
+
+                    // Find the .txt file in the extracted content
+                    $files = glob($extractPath . '/*.txt');
+                    if (empty($files)) {
+                        throw new \Exception('No .txt file found in ZIP archive');
+                    }
+
+                    $txtFilePath = $files[0];
+                } else {
+                    throw new \Exception('Failed to extract ZIP file');
+                }
+            } else {
+                $txtFilePath = $this->filePath;
+            }
+
+            // STAGE 2: Parse messages
+            $progress->update(['status' => 'parsing']);
+            $messages = $parser->parseFile($txtFilePath);
 
             if (empty($messages)) {
                 throw new \Exception('No messages found in the file');
@@ -63,7 +87,8 @@ class ProcessChatImportJob implements ShouldQueue
 
             $progress->update(['total_messages' => count($messages)]);
 
-            // Create the chat
+            // STAGE 3: Create chat
+            $progress->update(['status' => 'creating_chat']);
             $chat = Chat::create([
                 'name' => $this->chatName,
                 'description' => $this->chatDescription,
@@ -71,15 +96,16 @@ class ProcessChatImportJob implements ShouldQueue
             ]);
 
             $chat->users()->attach($this->userId);
-
             $progress->update(['chat_id' => $chat->id]);
 
-            // Import messages in chunks to avoid memory issues
+            // STAGE 4: Import messages in chunks
+            $progress->update(['status' => 'importing_messages']);
             $this->importMessagesInChunks($chat, $messages, $progress);
 
-            // Process media files from ZIP if they exist
-            if ($this->extractPath && file_exists($this->extractPath)) {
-                $this->processMediaFiles($chat, $this->extractPath, $progress);
+            // STAGE 5: Process media files from ZIP if they exist
+            if ($extractPath && file_exists($extractPath)) {
+                $progress->update(['status' => 'processing_media']);
+                $this->processMediaFiles($chat, $extractPath, $progress);
             }
 
             $progress->update([
@@ -87,9 +113,14 @@ class ProcessChatImportJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
 
-            // Cleanup temporary extraction directory
-            if ($this->extractPath && file_exists($this->extractPath)) {
-                $this->deleteDirectory($this->extractPath);
+            // Cleanup temporary files
+            if ($extractPath && file_exists($extractPath)) {
+                $this->deleteDirectory($extractPath);
+            }
+
+            // Cleanup stored import file
+            if (file_exists($this->filePath)) {
+                @unlink($this->filePath);
             }
 
         } catch (\Exception $e) {
@@ -106,8 +137,12 @@ class ProcessChatImportJob implements ShouldQueue
             ]);
 
             // Cleanup on error
-            if ($this->extractPath && file_exists($this->extractPath)) {
-                $this->deleteDirectory($this->extractPath);
+            if ($extractPath && file_exists($extractPath)) {
+                $this->deleteDirectory($extractPath);
+            }
+
+            if (file_exists($this->filePath)) {
+                @unlink($this->filePath);
             }
 
             throw $e;

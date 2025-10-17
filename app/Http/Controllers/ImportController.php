@@ -47,57 +47,32 @@ class ImportController extends Controller
             // Get the uploaded file
             $file = $request->file('chat_file');
             $filename = $file->getClientOriginalName();
+            $isZip = $file->getClientOriginalExtension() === 'zip';
 
-            // Store file in a permanent location for processing
+            // Store file quickly - just save to disk, don't extract yet
             $storedPath = $file->store('imports', 'local');
             $fullPath = storage_path('app/' . $storedPath);
-            $extractPath = null;
 
-            // Handle ZIP files - extract immediately
-            if ($file->getClientOriginalExtension() === 'zip') {
-                $extractPath = storage_path('app/temp/' . Str::uuid());
-                mkdir($extractPath, 0755, true);
-
-                $zip = new \ZipArchive();
-                if ($zip->open($fullPath) === true) {
-                    $zip->extractTo($extractPath);
-                    $zip->close();
-
-                    // Find the .txt file in the extracted content
-                    $files = glob($extractPath . '/*.txt');
-                    if (empty($files)) {
-                        // Cleanup
-                        Storage::disk('local')->delete($storedPath);
-                        $this->deleteDirectory($extractPath);
-                        throw new \Exception('No .txt file found in ZIP archive');
-                    }
-
-                    $fullPath = $files[0];
-                } else {
-                    Storage::disk('local')->delete($storedPath);
-                    throw new \Exception('Failed to extract ZIP file');
-                }
-            }
-
-            // Create import progress record
+            // Create import progress record immediately
             $progress = ImportProgress::create([
                 'user_id' => auth()->id(),
                 'filename' => $filename,
-                'status' => 'pending',
+                'status' => 'uploading', // New status to show upload complete
             ]);
 
-            // Dispatch the job
+            // Dispatch the job - it will handle extraction and parsing
             ProcessChatImportJob::dispatch(
                 $progress->id,
                 $fullPath,
                 $request->chat_name,
                 $request->chat_description,
                 auth()->id(),
-                $extractPath
+                $isZip // Pass flag instead of extractPath
             );
 
+            // Immediately redirect to progress page
             return redirect()->route('import.progress', $progress)
-                ->with('success', 'Import started! You can watch the progress below.');
+                ->with('success', 'File uploaded! Processing will begin shortly...');
 
         } catch (\Exception $e) {
             return back()->withErrors(['chat_file' => 'Error starting import: ' . $e->getMessage()]);
