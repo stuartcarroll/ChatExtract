@@ -90,8 +90,13 @@ class ImportController extends Controller
             // Give the owner access to the chat
             $chat->users()->attach(auth()->id());
 
-            // Import messages
-            $importedCount = $this->importMessages($chat, $messages);
+            // Import messages and handle media files if present
+            $importedCount = $this->importMessages($chat, $messages, $mediaPath ?? null);
+
+            // Process media files from ZIP if they exist
+            if (isset($mediaPath) && file_exists($mediaPath)) {
+                $this->processMediaFiles($chat, $mediaPath);
+            }
 
             DB::commit();
 
@@ -141,9 +146,73 @@ class ImportController extends Controller
     }
 
     /**
+     * Process and store media files from ZIP archive.
+     */
+    protected function processMediaFiles(Chat $chat, string $mediaPath): void
+    {
+        // Create permanent storage directory for this chat's media
+        $chatMediaDir = "media/chat_{$chat->id}";
+        Storage::disk('media')->makeDirectory($chatMediaDir);
+
+        // Get all media files (excluding .txt files)
+        $mediaFiles = glob($mediaPath . '/*');
+
+        foreach ($mediaFiles as $filePath) {
+            if (is_file($filePath) && !str_ends_with($filePath, '.txt')) {
+                $filename = basename($filePath);
+                $mimeType = mime_content_type($filePath);
+                $fileSize = filesize($filePath);
+
+                // Determine media type
+                $type = $this->getMediaType($mimeType);
+
+                // Copy file to permanent storage
+                $destinationPath = $chatMediaDir . '/' . $filename;
+                Storage::disk('media')->put(
+                    $destinationPath,
+                    file_get_contents($filePath)
+                );
+
+                // Find the message that references this media file
+                $message = Message::where('chat_id', $chat->id)
+                    ->where('content', 'LIKE', '%' . $filename . '%')
+                    ->first();
+
+                if ($message) {
+                    // Create media record
+                    \App\Models\Media::create([
+                        'message_id' => $message->id,
+                        'type' => $type,
+                        'filename' => $filename,
+                        'file_path' => $destinationPath,
+                        'file_size' => $fileSize,
+                        'mime_type' => $mimeType,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Determine media type from MIME type.
+     */
+    protected function getMediaType(string $mimeType): string
+    {
+        if (str_starts_with($mimeType, 'image/')) {
+            return 'image';
+        } elseif (str_starts_with($mimeType, 'video/')) {
+            return 'video';
+        } elseif (str_starts_with($mimeType, 'audio/')) {
+            return 'audio';
+        } else {
+            return 'document';
+        }
+    }
+
+    /**
      * Import messages into the database.
      */
-    protected function importMessages(Chat $chat, array $messages): int
+    protected function importMessages(Chat $chat, array $messages, ?string $mediaPath = null): int
     {
         $participantCache = [];
         $importedCount = 0;

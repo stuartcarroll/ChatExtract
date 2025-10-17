@@ -138,12 +138,45 @@
                                     <p class="text-gray-700 text-sm whitespace-pre-wrap">{{ $message->content }}</p>
 
                                     @if ($message->media->isNotEmpty())
-                                        <div class="mt-2 flex flex-wrap gap-2">
+                                        <div class="mt-3 space-y-2">
                                             @foreach ($message->media as $media)
-                                                <div class="bg-gray-100 px-3 py-1 rounded text-xs">
-                                                    <span class="font-medium">{{ ucfirst($media->type) }}:</span>
-                                                    {{ $media->filename }}
-                                                </div>
+                                                @if ($media->type === 'image')
+                                                    <div class="inline-block">
+                                                        <a href="{{ asset('storage/' . $media->file_path) }}" target="_blank">
+                                                            <img src="{{ asset('storage/' . $media->file_path) }}"
+                                                                 alt="{{ $media->filename }}"
+                                                                 class="max-w-xs max-h-64 rounded-lg shadow hover:opacity-90 transition">
+                                                        </a>
+                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+                                                    </div>
+                                                @elseif ($media->type === 'video')
+                                                    <div class="max-w-md">
+                                                        <video controls class="w-full rounded-lg shadow">
+                                                            <source src="{{ asset('storage/' . $media->file_path) }}" type="{{ $media->mime_type }}">
+                                                            Your browser does not support the video tag.
+                                                        </video>
+                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+                                                    </div>
+                                                @elseif ($media->type === 'audio')
+                                                    <div class="max-w-md">
+                                                        <audio controls class="w-full">
+                                                            <source src="{{ asset('storage/' . $media->file_path) }}" type="{{ $media->mime_type }}">
+                                                            Your browser does not support the audio tag.
+                                                        </audio>
+                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }} (Voice Note)</p>
+                                                    </div>
+                                                @else
+                                                    <div class="bg-gray-100 px-4 py-2 rounded inline-flex items-center">
+                                                        <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                        </svg>
+                                                        <a href="{{ asset('storage/' . $media->file_path) }}"
+                                                           download="{{ $media->filename }}"
+                                                           class="text-sm text-blue-600 hover:underline">
+                                                            {{ $media->filename }} ({{ number_format($media->file_size / 1024, 2) }} KB)
+                                                        </a>
+                                                    </div>
+                                                @endif
                                             @endforeach
                                         </div>
                                     @endif

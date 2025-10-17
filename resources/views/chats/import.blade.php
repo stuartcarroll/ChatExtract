@@ -28,8 +28,8 @@
                                     <strong>How to export from WhatsApp:</strong><br>
                                     1. Open the chat in WhatsApp<br>
                                     2. Tap the menu (three dots) > More > Export chat<br>
-                                    3. Choose "Without Media" or "Include Media"<br>
-                                    4. Save the .txt file and upload it here
+                                    3. Choose "Include Media" to export with photos, videos, and voice notes<br>
+                                    4. Save the .zip file (or .txt if without media) and upload it here
                                 </p>
                             </div>
                         </div>
@@ -78,13 +78,13 @@
 
                         <div class="mb-6">
                             <label for="chat_file" class="block text-sm font-medium text-gray-700 mb-2">
-                                WhatsApp Export File (.txt) <span class="text-red-500">*</span>
+                                WhatsApp Export File (.txt or .zip with media) <span class="text-red-500">*</span>
                             </label>
                             <input
                                 type="file"
                                 name="chat_file"
                                 id="chat_file"
-                                accept=".txt"
+                                accept=".txt,.zip"
                                 required
                                 class="w-full text-sm text-gray-500
                                     file:mr-4 file:py-2 file:px-4
@@ -94,7 +94,7 @@
                                     hover:file:bg-blue-100"
                             >
                             <p class="mt-1 text-xs text-gray-500">
-                                Maximum file size: 100MB
+                                Maximum file size: 10GB (upload may take several minutes for large files)
                             </p>
                         </div>
 
