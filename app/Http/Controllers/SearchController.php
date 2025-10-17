@@ -72,25 +72,25 @@ class SearchController extends Controller
                 $query->where('is_story', true);
             }
 
-            // Get results
-            $results = $query->paginate(50);
+            // Get ALL results from Scout (before filtering)
+            $allResults = $query->get();
 
-            // Load relationships
-            $results->load(['chat', 'participant', 'media']);
+            // Load relationships for all results
+            $allResults->load(['chat', 'participant', 'media']);
 
-            // Apply participant filter (post-search)
+            // Apply participant filter
             if ($request->filled('participant_name')) {
                 $participantName = $request->participant_name;
-                $results = $results->filter(function ($message) use ($participantName) {
+                $allResults = $allResults->filter(function ($message) use ($participantName) {
                     return $message->participant &&
                            stripos($message->participant->name, $participantName) !== false;
                 });
             }
 
-            // Apply media type filter (post-search)
+            // Apply media type filter
             if ($request->filled('media_type')) {
                 $mediaType = $request->media_type;
-                $results = $results->filter(function ($message) use ($mediaType) {
+                $allResults = $allResults->filter(function ($message) use ($mediaType) {
                     if ($mediaType === 'has_media') {
                         return $message->media->isNotEmpty();
                     } elseif ($mediaType === 'no_media') {
@@ -102,13 +102,26 @@ class SearchController extends Controller
                 });
             }
 
-            // If tag filter is specified, filter results
+            // Apply tag filter
             if ($request->filled('tag_id')) {
                 $tagId = $request->tag_id;
-                $results = $results->filter(function ($message) use ($tagId) {
+                $allResults = $allResults->filter(function ($message) use ($tagId) {
                     return $message->tags()->where('tags.id', $tagId)->exists();
                 });
             }
+
+            // Manually paginate the filtered collection
+            $perPage = 50;
+            $currentPage = request()->get('page', 1);
+            $offset = ($currentPage - 1) * $perPage;
+
+            $results = new \Illuminate\Pagination\LengthAwarePaginator(
+                $allResults->slice($offset, $perPage)->values(),
+                $allResults->count(),
+                $perPage,
+                $currentPage,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
         }
 
         // Get user's chats for filter dropdown

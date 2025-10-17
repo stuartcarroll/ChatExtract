@@ -34,14 +34,14 @@ function color($text, $color) {
     return ($colors[$color] ?? '') . $text . ($colors['reset'] ?? '');
 }
 
-function testRoute($name, $method, $uri, $expectations = []) {
+function testRoute($name, $method, $uri, $expectations = [], $data = []) {
     global $testUser;
 
     try {
         // Simulate authenticated request
         Auth::login($testUser);
 
-        $request = Illuminate\Http\Request::create($uri, $method);
+        $request = Illuminate\Http\Request::create($uri, $method, $data);
         $request->headers->set('Accept', 'text/html');
 
         // Get the route
@@ -140,6 +140,7 @@ $tests = [
     ['Chats List', 'GET', '/chats', ['status' => 200, 'contains' => 'My Chats']],
     ['Global Gallery', 'GET', '/gallery', ['status' => 200, 'contains' => ['Gallery', 'Media']]],
     ['Search Page', 'GET', '/search', ['status' => 200, 'contains' => 'Search Messages']],
+    ['Search Perform (POST)', 'POST', '/search', ['status' => 200, 'contains' => 'Search Messages'], ['query' => 'test']],
     ['Import Dashboard', 'GET', '/import/dashboard', ['status' => 200, 'contains' => 'Import']],
     ['Import Form', 'GET', '/import', ['status' => 200, 'contains' => 'Import', 'allow_errors' => true]],
     ['Profile', 'GET', '/profile', ['status' => 200, 'contains' => 'Profile', 'allow_errors' => true]],
@@ -147,7 +148,7 @@ $tests = [
 
 // Run each test
 foreach ($tests as $test) {
-    if (testRoute($test[0], $test[1], $test[2], $test[3] ?? [])) {
+    if (testRoute($test[0], $test[1], $test[2], $test[3] ?? [], $test[4] ?? [])) {
         $passed++;
     } else {
         $failed++;
