@@ -27,7 +27,7 @@ class GalleryController extends Controller
             // Build query
             $query = Media::whereHas('message', function ($q) use ($chatIds) {
                 $q->whereIn('chat_id', $chatIds);
-            })->with(['message.participant', 'message.chat']);
+            })->with(['message.participant', 'message.chat', 'message.tags']);
 
             // Filter by type
             if ($type !== 'all') {
@@ -71,6 +71,9 @@ class GalleryController extends Controller
                 ->unique('name');
         }
 
-        return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId'));
+        // Get user's tags for tagging interface
+        $tags = auth()->user()->tags()->orderBy('name')->get();
+
+        return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId', 'tags'));
     }
 }

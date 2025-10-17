@@ -101,6 +101,33 @@
                                 <p class="text-xs text-gray-500 mt-1 truncate" title="{{ $item->filename }}">
                                     {{ $item->filename }}
                                 </p>
+
+                                <!-- Tags Section -->
+                                @if($tags->isNotEmpty())
+                                <div class="mt-2 pt-2 border-t border-gray-100">
+                                    <!-- Show existing tags -->
+                                    @if($item->message->tags->isNotEmpty())
+                                    <div class="flex flex-wrap gap-1 mb-1">
+                                        @foreach($item->message->tags as $tag)
+                                        <span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                            {{ $tag->name }}
+                                        </span>
+                                        @endforeach
+                                    </div>
+                                    @endif
+
+                                    <!-- Tag dropdown -->
+                                    <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="tag-form">
+                                        @csrf
+                                        <select name="tag_id" onchange="this.form.submit()" class="w-full text-xs rounded border-gray-300 py-1">
+                                            <option value="">+ Add tag...</option>
+                                            @foreach($tags as $tag)
+                                            <option value="{{ $tag->id }}">{{ $tag->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </form>
+                                </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach

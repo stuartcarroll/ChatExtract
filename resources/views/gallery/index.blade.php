@@ -90,6 +90,33 @@
                                     </div>
                                 </div>
                             @endif
+
+                            <!-- Tags Section (below media) -->
+                            @if($tags->isNotEmpty())
+                            <div class="mt-2 bg-white rounded-lg p-2 shadow">
+                                <!-- Show existing tags -->
+                                @if($item->message->tags->isNotEmpty())
+                                <div class="flex flex-wrap gap-1 mb-1">
+                                    @foreach($item->message->tags as $tag)
+                                    <span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                        {{ $tag->name }}
+                                    </span>
+                                    @endforeach
+                                </div>
+                                @endif
+
+                                <!-- Tag dropdown -->
+                                <form action="{{ route('messages.tag', $item->message) }}" method="POST">
+                                    @csrf
+                                    <select name="tag_id" onchange="this.form.submit()" class="w-full text-xs rounded border-gray-300 py-1">
+                                        <option value="">+ Add tag...</option>
+                                        @foreach($tags as $tag)
+                                        <option value="{{ $tag->id }}">{{ $tag->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </form>
+                            </div>
+                            @endif
                         </div>
                     @empty
                         <div class="col-span-full text-center text-gray-500 py-12">

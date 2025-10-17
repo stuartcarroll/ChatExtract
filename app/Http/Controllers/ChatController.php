@@ -125,11 +125,11 @@ class ChatController extends Controller
         // Get filter type (all, image, video, audio)
         $type = $request->get('type', 'all');
 
-        // Query media with messages and participants
+        // Query media with messages, participants, and tags
         $query = \App\Models\Media::query()
             ->join('messages', 'media.message_id', '=', 'messages.id')
             ->where('messages.chat_id', $chat->id)
-            ->with(['message.participant']);
+            ->with(['message.participant', 'message.tags']);
 
         // Apply type filter
         if ($type !== 'all') {
@@ -165,7 +165,10 @@ class ChatController extends Controller
                 ->count(),
         ];
 
-        return view('chats.gallery', compact('chat', 'media', 'type', 'counts'));
+        // Get user's tags for tagging interface
+        $tags = auth()->user()->tags()->orderBy('name')->get();
+
+        return view('chats.gallery', compact('chat', 'media', 'type', 'counts', 'tags'));
     }
 
     /**
