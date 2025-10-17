@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
     // Chat routes
     Route::resource('chats', ChatController::class);
     Route::get('/chats/{chat}/filter', [ChatController::class, 'filter'])->name('chats.filter');
+    Route::get('/chats/{chat}/gallery', [ChatController::class, 'gallery'])->name('chats.gallery');
 
     // Import routes
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');

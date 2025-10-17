@@ -115,6 +115,52 @@ class ChatController extends Controller
     }
 
     /**
+     * Display gallery view of all media in a chat.
+     */
+    public function gallery(Chat $chat, Request $request)
+    {
+        // Authorize the user
+        $this->authorize('view', $chat);
+
+        // Get filter type (all, image, video, audio)
+        $type = $request->get('type', 'all');
+
+        // Query media with messages and participants
+        $query = \App\Models\Media::whereHas('message', function ($q) use ($chat) {
+            $q->where('chat_id', $chat->id);
+        })->with(['message.participant']);
+
+        // Apply type filter
+        if ($type !== 'all') {
+            $query->where('type', $type);
+        }
+
+        // Order by message date (newest first)
+        $media = $query->join('messages', 'media.message_id', '=', 'messages.id')
+            ->orderBy('messages.sent_at', 'desc')
+            ->select('media.*')
+            ->paginate(24);
+
+        // Get media counts by type
+        $counts = [
+            'all' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
+                $q->where('chat_id', $chat->id);
+            })->count(),
+            'image' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
+                $q->where('chat_id', $chat->id);
+            })->where('type', 'image')->count(),
+            'video' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
+                $q->where('chat_id', $chat->id);
+            })->where('type', 'video')->count(),
+            'audio' => \App\Models\Media::whereHas('message', function ($q) use ($chat) {
+                $q->where('chat_id', $chat->id);
+            })->where('type', 'audio')->count(),
+        ];
+
+        return view('chats.gallery', compact('chat', 'media', 'type', 'counts'));
+    }
+
+    /**
      * Filter messages in a chat.
      */
     public function filter(Request $request, Chat $chat)

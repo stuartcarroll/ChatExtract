@@ -5,6 +5,9 @@
                 {{ $chat->name }}
             </h2>
             <div class="flex space-x-2">
+                <a href="{{ route('chats.gallery', $chat) }}" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                    📷 Gallery
+                </a>
                 <a href="{{ route('search.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                     Search
                 </a>
