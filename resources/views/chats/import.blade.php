@@ -45,7 +45,31 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('import.store') }}" method="POST" enctype="multipart/form-data">
+                    <!-- Upload Progress (hidden by default) -->
+                    <div id="upload-progress" class="hidden mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="animate-spin h-5 w-5 text-blue-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span class="font-semibold text-blue-700">Uploading file...</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-6 mb-2">
+                                <div id="upload-progress-bar" class="bg-blue-600 h-6 rounded-full transition-all duration-300 flex items-center justify-center text-white text-xs font-semibold" style="width: 0%">
+                                    <span id="upload-percentage">0%</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-blue-600">
+                                <span id="upload-status">Preparing upload...</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Please keep this page open while the file uploads. Once complete, you'll be redirected to the progress page.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form id="import-form" action="{{ route('import.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <div class="mb-4">
@@ -119,8 +143,9 @@
                                 Cancel
                             </a>
                             <button
+                                id="submit-btn"
                                 type="submit"
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
                                 Import Chat
                             </button>
@@ -148,4 +173,90 @@ memory_limit = 2048M</code></pre>
             </div>
         </div>
     </div>
+
+    <script>
+        document.getElementById('import-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const form = this;
+            const formData = new FormData(form);
+            const submitBtn = document.getElementById('submit-btn');
+            const progressDiv = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('upload-progress-bar');
+            const percentageSpan = document.getElementById('upload-percentage');
+            const statusSpan = document.getElementById('upload-status');
+
+            // Disable submit button and show progress
+            submitBtn.disabled = true;
+            progressDiv.classList.remove('hidden');
+            form.classList.add('hidden');
+
+            // Create XMLHttpRequest for upload progress tracking
+            const xhr = new XMLHttpRequest();
+
+            // Track upload progress
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    percentageSpan.textContent = percentComplete + '%';
+
+                    const uploadedMB = (e.loaded / 1024 / 1024).toFixed(1);
+                    const totalMB = (e.total / 1024 / 1024).toFixed(1);
+                    statusSpan.textContent = `Uploaded ${uploadedMB} MB of ${totalMB} MB`;
+                }
+            });
+
+            // Handle completion
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    statusSpan.textContent = 'Upload complete! Redirecting to progress page...';
+
+                    // Parse response and redirect
+                    try {
+                        // Laravel will redirect, so we need to follow it
+                        window.location.href = xhr.responseURL || '/chats';
+                    } catch (e) {
+                        // If response is HTML (redirect), parse it
+                        const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
+                        const meta = doc.querySelector('meta[http-equiv="refresh"]');
+                        if (meta) {
+                            const url = meta.content.split('URL=')[1];
+                            window.location.href = url;
+                        } else {
+                            // Just reload or go to chats
+                            window.location.href = '/chats';
+                        }
+                    }
+                } else {
+                    statusSpan.textContent = 'Upload failed. Please try again.';
+                    submitBtn.disabled = false;
+                    form.classList.remove('hidden');
+                }
+            });
+
+            // Handle errors
+            xhr.addEventListener('error', function() {
+                statusSpan.textContent = 'Upload failed. Please check your connection and try again.';
+                submitBtn.disabled = false;
+                form.classList.remove('hidden');
+            });
+
+            // Send the request
+            xhr.open('POST', form.action);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
+            xhr.send(formData);
+        });
+
+        // Show file size when selected
+        document.getElementById('chat_file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                const sizeText = document.querySelector('#chat_file + p');
+                sizeText.textContent = `Selected: ${file.name} (${sizeMB} MB) - Maximum file size: 10GB`;
+            }
+        });
+    </script>
 </x-app-layout>
