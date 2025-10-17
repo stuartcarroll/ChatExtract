@@ -51,9 +51,13 @@ class ProcessChatImportJob implements ShouldQueue
         $extractPath = null;
 
         try {
+            $progress->addLog("Starting import process");
+            $progress->update(['started_at' => now()]);
+
             // STAGE 1: Extract ZIP if needed
             if ($this->isZip) {
                 $progress->update(['status' => 'extracting']);
+                $progress->addLog("Extracting ZIP file: {$this->filePath}");
 
                 $extractPath = storage_path('app/temp/' . Str::uuid());
                 mkdir($extractPath, 0755, true);
@@ -62,8 +66,12 @@ class ProcessChatImportJob implements ShouldQueue
                 $zipStatus = $zip->open($this->filePath);
 
                 if ($zipStatus === true) {
+                    $fileCount = $zip->numFiles;
+                    $progress->addLog("ZIP opened successfully, contains {$fileCount} files");
+
                     $zip->extractTo($extractPath);
                     $zip->close();
+                    $progress->addLog("ZIP extracted to temporary directory");
 
                     // Find the .txt file in the extracted content
                     $files = glob($extractPath . '/*.txt');
@@ -72,6 +80,7 @@ class ProcessChatImportJob implements ShouldQueue
                     }
 
                     $txtFilePath = $files[0];
+                    $progress->addLog("Found chat file: " . basename($txtFilePath));
                 } else {
                     // Get zip error message
                     $zipErrors = [
@@ -103,16 +112,22 @@ class ProcessChatImportJob implements ShouldQueue
 
             // STAGE 2: Parse messages
             $progress->update(['status' => 'parsing']);
+            $progress->addLog("Parsing WhatsApp chat file");
+
             $messages = $parser->parseFile($txtFilePath);
 
             if (empty($messages)) {
                 throw new \Exception('No messages found in the file');
             }
 
-            $progress->update(['total_messages' => count($messages)]);
+            $messageCount = count($messages);
+            $progress->update(['total_messages' => $messageCount]);
+            $progress->addLog("Parsed {$messageCount} messages from chat");
 
             // STAGE 3: Create chat
             $progress->update(['status' => 'creating_chat']);
+            $progress->addLog("Creating chat: {$this->chatName}");
+
             $chat = Chat::create([
                 'name' => $this->chatName,
                 'description' => $this->chatDescription,
@@ -121,21 +136,27 @@ class ProcessChatImportJob implements ShouldQueue
 
             $chat->users()->attach($this->userId);
             $progress->update(['chat_id' => $chat->id]);
+            $progress->addLog("Chat created with ID: {$chat->id}");
 
             // STAGE 4: Import messages in chunks
             $progress->update(['status' => 'importing_messages']);
+            $progress->addLog("Importing messages in chunks of 500");
             $this->importMessagesInChunks($chat, $messages, $progress);
+            $progress->addLog("All messages imported successfully");
 
             // STAGE 5: Process media files from ZIP if they exist
             if ($extractPath && file_exists($extractPath)) {
                 $progress->update(['status' => 'processing_media']);
+                $progress->addLog("Processing media files from ZIP archive");
                 $this->processMediaFiles($chat, $extractPath, $progress);
+                $progress->addLog("Media processing completed");
             }
 
             $progress->update([
                 'status' => 'completed',
                 'completed_at' => now(),
             ]);
+            $progress->addLog("Import completed successfully!");
 
             // Cleanup temporary files
             if ($extractPath && file_exists($extractPath)) {

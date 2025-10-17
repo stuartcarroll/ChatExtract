@@ -95,6 +95,16 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Processing Log -->
+                    @if($progress->processing_log)
+                        <div class="mt-6">
+                            <h4 class="font-semibold text-gray-700 mb-2">Processing Log</h4>
+                            <div id="processing-log" class="bg-gray-50 border border-gray-200 rounded p-4 max-h-64 overflow-y-auto">
+                                <pre class="text-xs text-gray-700 whitespace-pre-wrap font-mono">{{ $progress->processing_log }}</pre>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -105,6 +115,20 @@
                         View Chat
                     </a>
                 @endif
+
+                @if($progress->status === 'failed' && $progress->canRetry())
+                    <form action="{{ route('import.retry', $progress) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded">
+                            Retry Import
+                        </button>
+                    </form>
+                @endif
+
+                <a href="{{ route('import.dashboard') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded">
+                    Import Dashboard
+                </a>
+
                 <a href="{{ route('chats.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded">
                     Back to Chats
                 </a>
@@ -171,14 +195,22 @@
                         document.getElementById('error-message').textContent = data.error_message;
                     }
 
+                    // Update processing log if present
+                    if (data.processing_log) {
+                        const logElement = document.getElementById('processing-log');
+                        if (logElement) {
+                            logElement.innerHTML = '<pre class="text-xs text-gray-700 whitespace-pre-wrap font-mono">' + data.processing_log + '</pre>';
+                            // Auto-scroll to bottom
+                            logElement.scrollTop = logElement.scrollHeight;
+                        }
+                    }
+
                     // Stop polling if completed or failed
                     if (data.status === 'completed' || data.status === 'failed') {
                         clearInterval(pollInterval);
 
                         // Reload page to show action buttons
-                        if (data.status === 'completed') {
-                            setTimeout(() => window.location.reload(), 1000);
-                        }
+                        setTimeout(() => window.location.reload(), 1000);
                     }
                 })
                 .catch(error => {

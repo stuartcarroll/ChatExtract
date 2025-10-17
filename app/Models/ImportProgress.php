@@ -23,6 +23,8 @@ class ImportProgress extends Model
         'user_id',
         'chat_id',
         'filename',
+        'file_path',
+        'is_zip',
         'status',
         'total_messages',
         'processed_messages',
@@ -32,6 +34,7 @@ class ImportProgress extends Model
         'videos_count',
         'audio_count',
         'error_message',
+        'processing_log',
         'started_at',
         'completed_at',
     ];
@@ -44,6 +47,7 @@ class ImportProgress extends Model
     protected function casts(): array
     {
         return [
+            'is_zip' => 'boolean',
             'total_messages' => 'integer',
             'processed_messages' => 'integer',
             'total_media' => 'integer',
@@ -96,5 +100,49 @@ class ImportProgress extends Model
         }
 
         return (int) (($this->processed_media / $this->total_media) * 100);
+    }
+
+    /**
+     * Add a log entry to the processing log.
+     */
+    public function addLog(string $message): void
+    {
+        $timestamp = now()->format('Y-m-d H:i:s');
+        $logEntry = "[{$timestamp}] {$message}\n";
+
+        $this->update([
+            'processing_log' => ($this->processing_log ?? '') . $logEntry
+        ]);
+    }
+
+    /**
+     * Check if this import can be retried.
+     */
+    public function canRetry(): bool
+    {
+        return $this->status === 'failed'
+            && $this->file_path
+            && file_exists(storage_path('app/' . $this->file_path));
+    }
+
+    /**
+     * Reset this import for retry.
+     */
+    public function resetForRetry(): void
+    {
+        $this->update([
+            'status' => 'pending',
+            'total_messages' => 0,
+            'processed_messages' => 0,
+            'total_media' => 0,
+            'processed_media' => 0,
+            'images_count' => 0,
+            'videos_count' => 0,
+            'audio_count' => 0,
+            'error_message' => null,
+            'started_at' => null,
+            'completed_at' => null,
+            'processing_log' => ($this->processing_log ?? '') . "\n--- RETRY STARTED AT " . now()->format('Y-m-d H:i:s') . " ---\n",
+        ]);
     }
 }

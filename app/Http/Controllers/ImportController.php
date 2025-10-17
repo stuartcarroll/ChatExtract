@@ -57,8 +57,12 @@ class ImportController extends Controller
             $progress = ImportProgress::create([
                 'user_id' => auth()->id(),
                 'filename' => $filename,
+                'file_path' => $storedPath,
+                'is_zip' => $isZip,
                 'status' => 'uploading', // New status to show upload complete
             ]);
+
+            $progress->addLog("File uploaded: {$filename} (" . round($file->getSize() / 1024 / 1024, 2) . " MB)");
 
             // Dispatch the job - it will handle extraction and parsing
             ProcessChatImportJob::dispatch(
@@ -114,6 +118,7 @@ class ImportController extends Controller
             'progress_percentage' => $progress->progress_percentage,
             'media_progress_percentage' => $progress->media_progress_percentage,
             'error_message' => $progress->error_message,
+            'processing_log' => $progress->processing_log,
             'chat_id' => $progress->chat_id,
         ]);
     }
@@ -441,6 +446,47 @@ class ImportController extends Controller
             return 'audio';
         } else {
             return 'document';
+        }
+    }
+
+    /**
+     * Retry a failed import.
+     */
+    public function retry(ImportProgress $progress)
+    {
+        // Authorize the user
+        if ($progress->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        // Check if import can be retried
+        if (!$progress->canRetry()) {
+            return back()->withErrors(['error' => 'This import cannot be retried. File may be missing or import is not in failed state.']);
+        }
+
+        try {
+            // Get chat info from failed import or use defaults
+            $chatName = $progress->chat->name ?? $progress->filename;
+            $chatDescription = $progress->chat->description ?? null;
+
+            // Reset the progress
+            $progress->resetForRetry();
+
+            // Re-dispatch the job with stored file path
+            ProcessChatImportJob::dispatch(
+                $progress->id,
+                storage_path('app/' . $progress->file_path),
+                $chatName,
+                $chatDescription,
+                auth()->id(),
+                $progress->is_zip
+            );
+
+            return redirect()->route('import.progress', $progress)
+                ->with('success', 'Import retry started!');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error retrying import: ' . $e->getMessage()]);
         }
     }
 }

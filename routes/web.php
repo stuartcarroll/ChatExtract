@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/import/dashboard/status', [ImportController::class, 'dashboardStatus'])->name('import.dashboard.status');
     Route::get('/import/{progress}/progress', [ImportController::class, 'progress'])->name('import.progress');
     Route::get('/import/{progress}/status', [ImportController::class, 'progressStatus'])->name('import.status');
+    Route::post('/import/{progress}/retry', [ImportController::class, 'retry'])->name('import.retry');
     Route::post('/chats/{chat}/media', [ImportController::class, 'uploadMedia'])->name('import.media');
 
     // Search routes
