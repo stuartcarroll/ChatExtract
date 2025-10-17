@@ -35,7 +35,7 @@
                         </div>
 
                         <!-- Quick Filters (Collapsible) -->
-                        <div x-data="{ open: {{ request()->except('_token', 'query')->isNotEmpty() ? 'true' : 'false' }} }" class="border-t pt-4">
+                        <div x-data="{ open: {{ count(request()->except('_token', 'query')) > 0 ? 'true' : 'false' }} }" class="border-t pt-4">
                             <button type="button" @click="open = !open" class="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3">
                                 <svg class="w-4 h-4 mr-2 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
