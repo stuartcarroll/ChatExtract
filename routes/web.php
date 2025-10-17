@@ -5,6 +5,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\TranscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -53,6 +54,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/tags/{tag}', [TagController::class, 'update'])->name('tags.update');
     Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
     Route::post('/messages/{message}/tag', [TagController::class, 'tagMessage'])->name('messages.tag');
+
+    // Transcription routes (admin only)
+    Route::post('/media/{media}/transcribe', [TranscriptionController::class, 'transcribeSingle'])->name('media.transcribe');
+    Route::post('/chats/{chat}/transcribe', [TranscriptionController::class, 'transcribeChat'])->name('chats.transcribe');
+    Route::get('/chats/{chat}/transcription-status', [TranscriptionController::class, 'status'])->name('chats.transcription.status');
 });
 
 require __DIR__.'/auth.php';

@@ -26,6 +26,9 @@ class Media extends Model
         'file_path',
         'file_size',
         'mime_type',
+        'transcription',
+        'transcription_requested',
+        'transcribed_at',
     ];
 
     /**
@@ -37,6 +40,8 @@ class Media extends Model
     {
         return [
             'file_size' => 'integer',
+            'transcription_requested' => 'boolean',
+            'transcribed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

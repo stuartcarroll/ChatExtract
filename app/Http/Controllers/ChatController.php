@@ -54,6 +54,20 @@ class ChatController extends Controller
             ],
         ];
 
+        // Get transcription statistics for audio files
+        $audioStats = \App\Models\Media::whereHas('message', function ($query) use ($chat) {
+            $query->where('chat_id', $chat->id);
+        })
+        ->where('type', 'audio')
+        ->selectRaw('
+            COUNT(*) as total,
+            SUM(CASE WHEN transcription IS NOT NULL THEN 1 ELSE 0 END) as transcribed
+        ')
+        ->first();
+
+        $statistics['audio_files'] = $audioStats->total ?? 0;
+        $statistics['transcribed_audio'] = $audioStats->transcribed ?? 0;
+
         return view('chats.show', compact('chat', 'messages', 'statistics'));
     }
 

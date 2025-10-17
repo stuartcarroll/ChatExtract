@@ -52,9 +52,16 @@ class Message extends Model
      */
     public function toSearchableArray(): array
     {
+        // Include audio transcriptions in searchable content
+        $transcriptions = $this->media()
+            ->where('type', 'audio')
+            ->whereNotNull('transcription')
+            ->pluck('transcription')
+            ->join(' ');
+
         return [
             'id' => $this->id,
-            'content' => $this->content,
+            'content' => trim($this->content . ' ' . $transcriptions),
             'sent_at' => $this->sent_at->timestamp,
             'is_story' => $this->is_story,
             'is_system_message' => $this->is_system_message,

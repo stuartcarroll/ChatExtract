@@ -8,6 +8,14 @@
                 <a href="{{ route('chats.gallery', $chat) }}" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
                     📷 Gallery
                 </a>
+                @if(auth()->user()->isAdmin())
+                <form action="{{ route('chats.transcribe', $chat) }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" onclick="return confirm('Transcribe all voice notes in this chat? This will use OpenAI API credits.')">
+                        🎤 Transcribe All
+                    </button>
+                </form>
+                @endif
                 <a href="{{ route('search.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                     Search
                 </a>
@@ -30,7 +38,7 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold mb-4">Chat Statistics</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div>
                             <p class="text-gray-600 text-sm">Total Messages</p>
                             <p class="text-2xl font-bold">{{ number_format($statistics['total_messages']) }}</p>
@@ -42,6 +50,18 @@
                         <div>
                             <p class="text-gray-600 text-sm">Participants</p>
                             <p class="text-2xl font-bold">{{ number_format($statistics['total_participants']) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 text-sm">Voice Notes</p>
+                            <p class="text-2xl font-bold">{{ number_format($statistics['audio_files']) }}</p>
+                            @if($statistics['audio_files'] > 0)
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ number_format($statistics['transcribed_audio']) }} transcribed
+                                @if($statistics['transcribed_audio'] > 0)
+                                <span class="text-green-600">({{ round(($statistics['transcribed_audio'] / $statistics['audio_files']) * 100) }}%)</span>
+                                @endif
+                            </p>
+                            @endif
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm">Date Range</p>
@@ -161,12 +181,41 @@
                                                         <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
                                                     </div>
                                                 @elseif ($media->type === 'audio')
-                                                    <div class="max-w-md">
+                                                    <div class="max-w-md bg-gray-50 p-3 rounded-lg">
                                                         <audio controls class="w-full">
                                                             <source src="{{ asset('storage/' . $media->file_path) }}" type="{{ $media->mime_type }}">
                                                             Your browser does not support the audio tag.
                                                         </audio>
-                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }} (Voice Note)</p>
+                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+
+                                                        @if($media->transcription)
+                                                            <!-- Show transcription -->
+                                                            <div class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                                                <div class="flex items-start">
+                                                                    <svg class="w-4 h-4 text-blue-600 mr-1 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                                    </svg>
+                                                                    <div class="flex-1">
+                                                                        <p class="text-xs font-semibold text-blue-900">Transcription:</p>
+                                                                        <p class="text-sm text-gray-700 mt-1">{{ $media->transcription }}</p>
+                                                                        <p class="text-xs text-gray-500 mt-1">Transcribed {{ $media->transcribed_at->diffForHumans() }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @elseif($media->transcription_requested)
+                                                            <!-- Transcription pending -->
+                                                            <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                                                                ⏳ Transcription in progress...
+                                                            </div>
+                                                        @elseif(auth()->user()->isAdmin())
+                                                            <!-- Transcribe button (admin only) -->
+                                                            <form action="{{ route('media.transcribe', $media) }}" method="POST" class="mt-2">
+                                                                @csrf
+                                                                <button type="submit" class="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded transition">
+                                                                    🎤 Transcribe
+                                                                </button>
+                                                            </form>
+                                                        @endif
                                                     </div>
                                                 @else
                                                     <div class="bg-gray-100 px-4 py-2 rounded inline-flex items-center">
