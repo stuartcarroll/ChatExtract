@@ -69,6 +69,25 @@
                                     <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full text-sm rounded-md border-gray-300">
                                 </div>
 
+                                <!-- Participant Filter -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Participant</label>
+                                    <input type="text" name="participant_name" value="{{ request('participant_name') }}" placeholder="Search by name..." class="w-full text-sm rounded-md border-gray-300">
+                                </div>
+
+                                <!-- Media Type Filter -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Media Type</label>
+                                    <select name="media_type" class="w-full text-sm rounded-md border-gray-300">
+                                        <option value="">All</option>
+                                        <option value="has_media" {{ request('media_type') == 'has_media' ? 'selected' : '' }}>Has Media</option>
+                                        <option value="no_media" {{ request('media_type') == 'no_media' ? 'selected' : '' }}>Text Only</option>
+                                        <option value="image" {{ request('media_type') == 'image' ? 'selected' : '' }}>Photos</option>
+                                        <option value="video" {{ request('media_type') == 'video' ? 'selected' : '' }}>Videos</option>
+                                        <option value="audio" {{ request('media_type') == 'audio' ? 'selected' : '' }}>Audio</option>
+                                    </select>
+                                </div>
+
                                 <!-- Tag Filter -->
                                 @if (isset($tags) && (is_array($tags) ? count($tags) > 0 : $tags->isNotEmpty()))
                                 <div>

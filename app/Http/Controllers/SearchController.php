@@ -33,6 +33,8 @@ class SearchController extends Controller
             'chat_id' => 'nullable|exists:chats,id',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
+            'participant_name' => 'nullable|string|max:255',
+            'media_type' => 'nullable|in:has_media,no_media,image,video,audio',
             'tag_id' => 'nullable|exists:tags,id',
             'only_stories' => 'nullable|boolean',
         ]);
@@ -75,6 +77,30 @@ class SearchController extends Controller
 
             // Load relationships
             $results->load(['chat', 'participant', 'media']);
+
+            // Apply participant filter (post-search)
+            if ($request->filled('participant_name')) {
+                $participantName = $request->participant_name;
+                $results = $results->filter(function ($message) use ($participantName) {
+                    return $message->participant &&
+                           stripos($message->participant->name, $participantName) !== false;
+                });
+            }
+
+            // Apply media type filter (post-search)
+            if ($request->filled('media_type')) {
+                $mediaType = $request->media_type;
+                $results = $results->filter(function ($message) use ($mediaType) {
+                    if ($mediaType === 'has_media') {
+                        return $message->media->isNotEmpty();
+                    } elseif ($mediaType === 'no_media') {
+                        return $message->media->isEmpty();
+                    } else {
+                        // Filter by specific media type (image, video, audio)
+                        return $message->media->where('type', $mediaType)->isNotEmpty();
+                    }
+                });
+            }
 
             // If tag filter is specified, filter results
             if ($request->filled('tag_id')) {
