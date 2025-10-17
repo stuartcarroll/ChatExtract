@@ -44,7 +44,7 @@ class SearchController extends Controller
             $results = collect();
         } else {
             // Use Laravel Scout for full-text search
-            $query = Message::search($request->query)
+            $query = Message::search($request->input('query'))
                 ->query(function ($builder) use ($userChatIds) {
                     // Ensure user can only search their own chats
                     $builder->whereIn('chat_id', $userChatIds);
@@ -123,7 +123,7 @@ class SearchController extends Controller
         // Apply full-text search if query provided
         if ($request->filled('query')) {
             // Use Scout for full-text search
-            $searchResults = Message::search($request->query)
+            $searchResults = Message::search($request->input('query'))
                 ->query(function ($builder) use ($userChatIds) {
                     $builder->whereIn('chat_id', $userChatIds);
                 })
