@@ -19,7 +19,13 @@ class SearchController extends Controller
         // Get user's tags for filter dropdown
         $tags = auth()->user()->tags()->get();
 
-        return view('search.index', compact('chats', 'tags'));
+        // Get all unique participants from user's chats
+        $participants = \App\Models\Participant::whereHas('messages', function ($query) {
+            $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+            $query->whereIn('chat_id', $userChatIds);
+        })->orderBy('name')->get(['id', 'name']);
+
+        return view('search.index', compact('chats', 'tags', 'participants'));
     }
 
     /**
@@ -33,7 +39,7 @@ class SearchController extends Controller
             'chat_id' => 'nullable|exists:chats,id',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
-            'participant_name' => 'nullable|string|max:255',
+            'participant_id' => 'nullable|exists:participants,id',
             'media_type' => 'nullable|in:has_media,no_media,image,video,audio',
             'tag_id' => 'nullable|exists:tags,id',
             'only_stories' => 'nullable|boolean',
@@ -79,11 +85,10 @@ class SearchController extends Controller
             $allResults->load(['chat', 'participant', 'media']);
 
             // Apply participant filter
-            if ($request->filled('participant_name')) {
-                $participantName = $request->participant_name;
-                $allResults = $allResults->filter(function ($message) use ($participantName) {
-                    return $message->participant &&
-                           stripos($message->participant->name, $participantName) !== false;
+            if ($request->filled('participant_id')) {
+                $participantId = $request->participant_id;
+                $allResults = $allResults->filter(function ($message) use ($participantId) {
+                    return $message->participant_id == $participantId;
                 });
             }
 
@@ -130,7 +135,13 @@ class SearchController extends Controller
         // Get user's tags for filter dropdown
         $tags = auth()->user()->tags()->get();
 
-        return view('search.index', compact('results', 'chats', 'tags'));
+        // Get all unique participants from user's chats
+        $participants = \App\Models\Participant::whereHas('messages', function ($query) {
+            $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+            $query->whereIn('chat_id', $userChatIds);
+        })->orderBy('name')->get(['id', 'name']);
+
+        return view('search.index', compact('results', 'chats', 'tags', 'participants'));
     }
 
     /**

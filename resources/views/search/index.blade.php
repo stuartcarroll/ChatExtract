@@ -70,10 +70,19 @@
                                 </div>
 
                                 <!-- Participant Filter -->
+                                @if (isset($participants) && $participants->isNotEmpty())
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">Participant</label>
-                                    <input type="text" name="participant_name" value="{{ request('participant_name') }}" placeholder="Search by name..." class="w-full text-sm rounded-md border-gray-300">
+                                    <select name="participant_id" class="w-full text-sm rounded-md border-gray-300">
+                                        <option value="">All Participants</option>
+                                        @foreach ($participants as $participant)
+                                            <option value="{{ $participant->id }}" {{ request('participant_id') == $participant->id ? 'selected' : '' }}>
+                                                {{ $participant->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
+                                @endif
 
                                 <!-- Media Type Filter -->
                                 <div>
