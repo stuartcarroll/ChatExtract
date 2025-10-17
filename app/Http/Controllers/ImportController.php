@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Chat;
 use App\Models\Participant;
 use App\Models\Message;
+use App\Models\ImportProgress;
 use App\Services\WhatsAppParserService;
 use App\Jobs\DetectStoryJob;
+use App\Jobs\ProcessChatImportJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -30,7 +32,7 @@ class ImportController extends Controller
     }
 
     /**
-     * Handle the file upload and parsing.
+     * Handle the file upload and queue import job.
      */
     public function store(Request $request)
     {
@@ -42,81 +44,103 @@ class ImportController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-
             // Get the uploaded file
             $file = $request->file('chat_file');
-            $filePath = $file->getRealPath();
+            $filename = $file->getClientOriginalName();
 
-            // Handle ZIP files
+            // Store file in a permanent location for processing
+            $storedPath = $file->store('imports', 'local');
+            $fullPath = storage_path('app/' . $storedPath);
+            $extractPath = null;
+
+            // Handle ZIP files - extract immediately
             if ($file->getClientOriginalExtension() === 'zip') {
                 $extractPath = storage_path('app/temp/' . Str::uuid());
                 mkdir($extractPath, 0755, true);
 
                 $zip = new \ZipArchive();
-                if ($zip->open($filePath) === true) {
+                if ($zip->open($fullPath) === true) {
                     $zip->extractTo($extractPath);
                     $zip->close();
 
                     // Find the .txt file in the extracted content
                     $files = glob($extractPath . '/*.txt');
                     if (empty($files)) {
+                        // Cleanup
+                        Storage::disk('local')->delete($storedPath);
+                        $this->deleteDirectory($extractPath);
                         throw new \Exception('No .txt file found in ZIP archive');
                     }
 
-                    $filePath = $files[0];
-
-                    // Store media files directory for later processing
-                    $mediaPath = $extractPath;
+                    $fullPath = $files[0];
                 } else {
+                    Storage::disk('local')->delete($storedPath);
                     throw new \Exception('Failed to extract ZIP file');
                 }
             }
 
-            // Parse the chat file
-            $messages = $this->parser->parseFile($filePath);
-
-            if (empty($messages)) {
-                return back()->withErrors(['chat_file' => 'No messages found in the file. Please check the file format.']);
-            }
-
-            // Create the chat
-            $chat = Chat::create([
-                'name' => $request->chat_name,
-                'description' => $request->chat_description,
+            // Create import progress record
+            $progress = ImportProgress::create([
                 'user_id' => auth()->id(),
+                'filename' => $filename,
+                'status' => 'pending',
             ]);
 
-            // Give the owner access to the chat
-            $chat->users()->attach(auth()->id());
+            // Dispatch the job
+            ProcessChatImportJob::dispatch(
+                $progress->id,
+                $fullPath,
+                $request->chat_name,
+                $request->chat_description,
+                auth()->id(),
+                $extractPath
+            );
 
-            // Import messages and handle media files if present
-            $importedCount = $this->importMessages($chat, $messages, $mediaPath ?? null);
+            return redirect()->route('import.progress', $progress)
+                ->with('success', 'Import started! You can watch the progress below.');
 
-            // Process media files from ZIP if they exist
-            if (isset($mediaPath) && file_exists($mediaPath)) {
-                $this->processMediaFiles($chat, $mediaPath);
-            }
-
-            DB::commit();
-
-            // Cleanup temporary extraction directory if it was a ZIP
-            if (isset($extractPath) && file_exists($extractPath)) {
-                $this->deleteDirectory($extractPath);
-            }
-
-            return redirect()->route('chats.show', $chat)
-                ->with('success', "Successfully imported {$importedCount} messages.");
         } catch (\Exception $e) {
-            DB::rollBack();
-
-            // Cleanup on error
-            if (isset($extractPath) && file_exists($extractPath)) {
-                $this->deleteDirectory($extractPath);
-            }
-
-            return back()->withErrors(['chat_file' => 'Error importing chat: ' . $e->getMessage()]);
+            return back()->withErrors(['chat_file' => 'Error starting import: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Show import progress page.
+     */
+    public function progress(ImportProgress $progress)
+    {
+        // Authorize the user
+        if ($progress->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        return view('chats.import-progress', compact('progress'));
+    }
+
+    /**
+     * Get import progress as JSON (for AJAX polling).
+     */
+    public function progressStatus(ImportProgress $progress)
+    {
+        // Authorize the user
+        if ($progress->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        return response()->json([
+            'status' => $progress->status,
+            'total_messages' => $progress->total_messages,
+            'processed_messages' => $progress->processed_messages,
+            'total_media' => $progress->total_media,
+            'processed_media' => $progress->processed_media,
+            'images_count' => $progress->images_count,
+            'videos_count' => $progress->videos_count,
+            'audio_count' => $progress->audio_count,
+            'progress_percentage' => $progress->progress_percentage,
+            'media_progress_percentage' => $progress->media_progress_percentage,
+            'error_message' => $progress->error_message,
+            'chat_id' => $progress->chat_id,
+        ]);
     }
 
     /**
