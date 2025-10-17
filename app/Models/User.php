@@ -71,4 +71,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Tag::class);
     }
+
+    /**
+     * Get the import progress records for the user.
+     */
+    public function importProgress(): HasMany
+    {
+        return $this->hasMany(ImportProgress::class);
+    }
 }

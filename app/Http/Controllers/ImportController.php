@@ -119,6 +119,55 @@ class ImportController extends Controller
     }
 
     /**
+     * Show dashboard with all import jobs.
+     */
+    public function dashboard()
+    {
+        $imports = auth()->user()
+            ->importProgress()
+            ->with('chat')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return view('chats.import-dashboard', compact('imports'));
+    }
+
+    /**
+     * Get all imports status as JSON (for dashboard polling).
+     */
+    public function dashboardStatus()
+    {
+        $imports = auth()->user()
+            ->importProgress()
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get([
+                'id',
+                'filename',
+                'status',
+                'total_messages',
+                'processed_messages',
+                'total_media',
+                'processed_media',
+                'images_count',
+                'videos_count',
+                'audio_count',
+                'error_message',
+                'chat_id',
+                'created_at',
+                'started_at',
+                'completed_at'
+            ])
+            ->map(function ($import) {
+                $import->progress_percentage = $import->progress_percentage;
+                $import->media_progress_percentage = $import->media_progress_percentage;
+                return $import;
+            });
+
+        return response()->json($imports);
+    }
+
+    /**
      * Recursively delete a directory.
      */
     protected function deleteDirectory(string $dir): bool

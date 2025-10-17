@@ -31,6 +31,8 @@ Route::middleware('auth')->group(function () {
     // Import routes
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
+    Route::get('/import/dashboard', [ImportController::class, 'dashboard'])->name('import.dashboard');
+    Route::get('/import/dashboard/status', [ImportController::class, 'dashboardStatus'])->name('import.dashboard.status');
     Route::get('/import/{progress}/progress', [ImportController::class, 'progress'])->name('import.progress');
     Route::get('/import/{progress}/status', [ImportController::class, 'progressStatus'])->name('import.status');
     Route::post('/chats/{chat}/media', [ImportController::class, 'uploadMedia'])->name('import.media');
