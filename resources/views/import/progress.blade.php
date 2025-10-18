@@ -96,11 +96,11 @@
                             </form>
                         @endif
 
-                        @if($progress->canRetry())
-                            <form action="{{ route('import.retry', $progress) }}" method="POST">
+                        @if($progress->status === 'failed')
+                            <form action="{{ route('import.retry', $progress) }}" method="POST" onsubmit="return confirm('This will restart the import process. Continue?');">
                                 @csrf
-                                <button type="submit" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                                    Retry Import
+                                <button type="submit" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded text-lg px-6 py-3">
+                                    🔄 Retry Import
                                 </button>
                             </form>
                         @endif
@@ -198,13 +198,37 @@
         </div>
     </div>
 
-    <!-- Auto-refresh script -->
+    <!-- Auto-refresh and monitoring script -->
     <script>
         // Auto-refresh every 3 seconds if import is in progress
         const status = '{{ $progress->status }}';
         const inProgressStatuses = ['uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media'];
+        const lastUpdated = new Date('{{ $progress->updated_at->toISOString() }}');
+        const now = new Date();
+        const minutesSinceUpdate = Math.floor((now - lastUpdated) / 1000 / 60);
 
+        // Check for stuck imports
         if (inProgressStatuses.includes(status)) {
+            // If import hasn't updated in 5+ minutes, show warning
+            if (minutesSinceUpdate >= 5) {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-lg max-w-md z-50';
+                warningDiv.innerHTML = `
+                    <div class="flex items-start">
+                        <svg class="h-6 w-6 text-yellow-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <p class="font-bold">Import May Be Stuck</p>
+                            <p class="text-sm mt-1">No progress updates in ${minutesSinceUpdate} minutes. This may indicate an issue with disk space, memory, or the queue worker.</p>
+                            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="mt-2 text-sm underline">Dismiss</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(warningDiv);
+            }
+
+            // Auto-refresh
             setTimeout(function() {
                 window.location.reload();
             }, 3000);
