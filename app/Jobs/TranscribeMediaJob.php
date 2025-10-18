@@ -52,6 +52,9 @@ class TranscribeMediaJob implements ShouldQueue
                 'transcribed_at' => now(),
             ]);
 
+            // Re-index the message in search to include the transcription
+            $this->media->message->searchable();
+
             Log::info('Media transcribed successfully', [
                 'media_id' => $this->media->id,
                 'filename' => $this->media->filename
