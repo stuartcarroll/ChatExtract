@@ -242,7 +242,8 @@
                             });
 
                             if (!chunkResponse.ok) {
-                                throw new Error(`Chunk ${chunkIndex} upload failed`);
+                                const errorData = await chunkResponse.json().catch(() => ({ error: 'Unknown error' }));
+                                throw new Error(errorData.error || `Chunk ${chunkIndex} upload failed with status ${chunkResponse.status}`);
                             }
 
                             const chunkResult = await chunkResponse.json();

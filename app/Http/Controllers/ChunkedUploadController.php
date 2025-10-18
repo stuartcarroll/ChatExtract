@@ -87,14 +87,52 @@ class ChunkedUploadController extends Controller
         }
 
         try {
-            // Save chunk
+            // Check if chunk already exists (resume case)
             $chunkPath = $uploadDir . '/chunk_' . str_pad($chunkIndex, 6, '0', STR_PAD_LEFT);
-            $request->file('chunk')->move($uploadDir, basename($chunkPath));
+
+            if (file_exists($chunkPath)) {
+                // Chunk already uploaded, skip it
+                $uploadedChunks = count(glob($uploadDir . '/chunk_*'));
+                return response()->json([
+                    'success' => true,
+                    'uploaded_chunks' => $uploadedChunks,
+                    'total_chunks' => $progress->total_chunks,
+                    'skipped' => true,
+                ]);
+            }
+
+            // Save chunk
+            $uploadedFile = $request->file('chunk');
+
+            if (!$uploadedFile || !$uploadedFile->isValid()) {
+                \Log::error('Chunk upload failed - invalid file', [
+                    'upload_id' => $uploadId,
+                    'chunk_index' => $chunkIndex,
+                    'error' => $uploadedFile ? $uploadedFile->getErrorMessage() : 'No file uploaded',
+                ]);
+                return response()->json([
+                    'error' => 'Invalid chunk file: ' . ($uploadedFile ? $uploadedFile->getErrorMessage() : 'No file')
+                ], 400);
+            }
+
+            $uploadedFile->move($uploadDir, basename($chunkPath));
+
+            // Verify chunk was saved
+            if (!file_exists($chunkPath)) {
+                throw new \Exception('Chunk file was not saved to disk');
+            }
 
             // Update progress
             $uploadedChunks = count(glob($uploadDir . '/chunk_*'));
             $progress->update([
                 'uploaded_chunks' => $uploadedChunks,
+            ]);
+
+            \Log::info('Chunk uploaded successfully', [
+                'upload_id' => $uploadId,
+                'chunk_index' => $chunkIndex,
+                'uploaded_chunks' => $uploadedChunks,
+                'total_chunks' => $progress->total_chunks,
             ]);
 
             return response()->json([
@@ -103,6 +141,12 @@ class ChunkedUploadController extends Controller
                 'total_chunks' => $progress->total_chunks,
             ]);
         } catch (\Exception $e) {
+            \Log::error('Chunk upload exception', [
+                'upload_id' => $uploadId,
+                'chunk_index' => $chunkIndex,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -172,6 +216,23 @@ class ChunkedUploadController extends Controller
 
             fclose($finalFile);
 
+            // Verify final file was created successfully
+            if (!file_exists($finalFullPath)) {
+                throw new \Exception('Final file does not exist after combining chunks');
+            }
+
+            $finalSize = filesize($finalFullPath);
+            if ($finalSize === 0) {
+                throw new \Exception('Final file is empty after combining chunks');
+            }
+
+            \Log::info('Chunks combined successfully', [
+                'upload_id' => $uploadId,
+                'final_path' => $finalFullPath,
+                'final_size' => $finalSize,
+                'total_chunks' => $progress->total_chunks,
+            ]);
+
             // Remove upload directory
             rmdir($uploadDir);
 
@@ -181,7 +242,7 @@ class ChunkedUploadController extends Controller
                 'status' => 'pending',
             ]);
 
-            $progress->addLog("File upload completed, combined from {$progress->total_chunks} chunks");
+            $progress->addLog("File upload completed, combined from {$progress->total_chunks} chunks (" . round($finalSize / 1024 / 1024, 2) . " MB)");
 
             // Dispatch processing job
             ProcessChatImportJob::dispatch(
@@ -193,7 +254,7 @@ class ChunkedUploadController extends Controller
                 $progress->is_zip
             );
 
-            $progress->addLog("Processing job dispatched");
+            $progress->addLog("Processing job dispatched for file: $finalFullPath");
 
             return response()->json([
                 'success' => true,
