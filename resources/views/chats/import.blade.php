@@ -157,78 +157,157 @@
     </div>
 
     <script>
-        document.getElementById('import-form').addEventListener('submit', function(e) {
+        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+        const MAX_RETRIES = 3;
+
+        document.getElementById('import-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const form = this;
-            const formData = new FormData(form);
+            const fileInput = document.getElementById('chat_file');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file to upload');
+                return;
+            }
+
+            const chatName = document.getElementById('chat_name').value;
+            const chatDescription = document.getElementById('chat_description').value;
             const submitBtn = document.getElementById('submit-btn');
             const progressDiv = document.getElementById('upload-progress');
             const progressBar = document.getElementById('upload-progress-bar');
             const percentageSpan = document.getElementById('upload-percentage');
             const statusSpan = document.getElementById('upload-status');
+            const csrfToken = document.querySelector('input[name="_token"]').value;
 
             // Disable submit button and show progress
             submitBtn.disabled = true;
             progressDiv.classList.remove('hidden');
             form.classList.add('hidden');
 
-            // Create XMLHttpRequest for upload progress tracking
-            const xhr = new XMLHttpRequest();
+            try {
+                // Calculate total chunks
+                const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                statusSpan.textContent = `Preparing upload (${totalChunks} chunks)...`;
 
-            // Track upload progress
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    percentageSpan.textContent = percentComplete + '%';
+                // Step 1: Initiate upload
+                const initiateResponse = await fetch('{{ route('upload.initiate') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        total_chunks: totalChunks,
+                        file_size: file.size,
+                        chat_name: chatName,
+                        chat_description: chatDescription
+                    })
+                });
 
-                    const uploadedMB = (e.loaded / 1024 / 1024).toFixed(1);
-                    const totalMB = (e.total / 1024 / 1024).toFixed(1);
-                    statusSpan.textContent = `Uploaded ${uploadedMB} MB of ${totalMB} MB`;
+                if (!initiateResponse.ok) {
+                    throw new Error('Failed to initiate upload');
                 }
-            });
 
-            // Handle completion
-            xhr.addEventListener('load', function() {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    statusSpan.textContent = 'Upload complete! Redirecting to progress page...';
+                const { upload_id, progress_id } = await initiateResponse.json();
+                statusSpan.textContent = `Uploading chunks...`;
 
-                    // Parse response and redirect
-                    try {
-                        // Laravel will redirect, so we need to follow it
-                        window.location.href = xhr.responseURL || '/chats';
-                    } catch (e) {
-                        // If response is HTML (redirect), parse it
-                        const doc = new DOMParser().parseFromString(xhr.responseText, 'text/html');
-                        const meta = doc.querySelector('meta[http-equiv="refresh"]');
-                        if (meta) {
-                            const url = meta.content.split('URL=')[1];
-                            window.location.href = url;
-                        } else {
-                            // Just reload or go to chats
-                            window.location.href = '/chats';
+                // Step 2: Upload chunks
+                for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                    const start = chunkIndex * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, file.size);
+                    const chunk = file.slice(start, end);
+
+                    // Upload chunk with retry
+                    let retries = 0;
+                    let success = false;
+
+                    while (retries < MAX_RETRIES && !success) {
+                        try {
+                            const chunkFormData = new FormData();
+                            chunkFormData.append('upload_id', upload_id);
+                            chunkFormData.append('chunk_index', chunkIndex);
+                            chunkFormData.append('chunk', chunk);
+
+                            const chunkResponse = await fetch('{{ route('upload.chunk') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json'
+                                },
+                                body: chunkFormData
+                            });
+
+                            if (!chunkResponse.ok) {
+                                throw new Error(`Chunk ${chunkIndex} upload failed`);
+                            }
+
+                            const chunkResult = await chunkResponse.json();
+                            success = true;
+
+                            // Update progress
+                            const percentComplete = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+                            progressBar.style.width = percentComplete + '%';
+                            percentageSpan.textContent = percentComplete + '%';
+
+                            const uploadedMB = ((chunkIndex + 1) * CHUNK_SIZE / 1024 / 1024).toFixed(1);
+                            const totalMB = (file.size / 1024 / 1024).toFixed(1);
+                            statusSpan.textContent = `Uploaded ${uploadedMB} MB of ${totalMB} MB (chunk ${chunkIndex + 1}/${totalChunks})`;
+
+                        } catch (error) {
+                            retries++;
+                            if (retries < MAX_RETRIES) {
+                                statusSpan.textContent = `Chunk ${chunkIndex} failed, retrying (${retries}/${MAX_RETRIES})...`;
+                                await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // Exponential backoff
+                            } else {
+                                throw new Error(`Failed to upload chunk ${chunkIndex} after ${MAX_RETRIES} attempts`);
+                            }
                         }
                     }
-                } else {
-                    statusSpan.textContent = 'Upload failed. Please try again.';
-                    submitBtn.disabled = false;
-                    form.classList.remove('hidden');
                 }
-            });
 
-            // Handle errors
-            xhr.addEventListener('error', function() {
-                statusSpan.textContent = 'Upload failed. Please check your connection and try again.';
-                submitBtn.disabled = false;
+                // Step 3: Finalize upload
+                statusSpan.textContent = 'Combining chunks and starting import...';
+                progressBar.style.width = '100%';
+                percentageSpan.textContent = '100%';
+
+                const finalizeResponse = await fetch('{{ route('upload.finalize') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        upload_id: upload_id,
+                        chat_name: chatName,
+                        chat_description: chatDescription
+                    })
+                });
+
+                if (!finalizeResponse.ok) {
+                    throw new Error('Failed to finalize upload');
+                }
+
+                const finalResult = await finalizeResponse.json();
+                statusSpan.textContent = 'Upload complete! Redirecting to progress page...';
+
+                // Redirect to progress page
+                setTimeout(() => {
+                    window.location.href = finalResult.redirect_url;
+                }, 1000);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusSpan.textContent = 'Upload failed: ' + error.message;
+                progressDiv.classList.add('hidden');
                 form.classList.remove('hidden');
-            });
-
-            // Send the request
-            xhr.open('POST', form.action);
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('input[name="_token"]').value);
-            xhr.send(formData);
+                submitBtn.disabled = false;
+                alert('Upload failed: ' + error.message + '. Please try again.');
+            }
         });
 
         // Show file size when selected
@@ -237,7 +316,8 @@
             if (file) {
                 const sizeMB = (file.size / 1024 / 1024).toFixed(1);
                 const sizeText = document.querySelector('#chat_file + p');
-                sizeText.textContent = `Selected: ${file.name} (${sizeMB} MB) - Maximum file size: 10GB`;
+                const chunks = Math.ceil(file.size / CHUNK_SIZE);
+                sizeText.textContent = `Selected: ${file.name} (${sizeMB} MB, will be uploaded in ${chunks} chunks) - Maximum file size: 10GB`;
             }
         });
     </script>

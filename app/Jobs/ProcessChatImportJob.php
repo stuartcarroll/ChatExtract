@@ -21,8 +21,9 @@ class ProcessChatImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 3600; // 1 hour
-    public $tries = 1;
+    public $timeout = 7200; // 2 hours for very large imports
+    public $tries = 3; // Retry up to 3 times on failure
+    public $backoff = 60; // Wait 60 seconds between retries
 
     /**
      * Create a new job instance.
