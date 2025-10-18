@@ -43,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/import/{progress}/retry', [ImportController::class, 'retry'])->name('import.retry');
     Route::post('/chats/{chat}/media', [ImportController::class, 'uploadMedia'])->name('import.media');
 
+    // Chunked upload routes
+    Route::post('/upload/initiate', [App\Http\Controllers\ChunkedUploadController::class, 'initiate'])->name('upload.initiate');
+    Route::post('/upload/chunk', [App\Http\Controllers\ChunkedUploadController::class, 'uploadChunk'])->name('upload.chunk');
+    Route::post('/upload/finalize', [App\Http\Controllers\ChunkedUploadController::class, 'finalize'])->name('upload.finalize');
+    Route::get('/upload/{uploadId}/status', [App\Http\Controllers\ChunkedUploadController::class, 'status'])->name('upload.status');
+
     // Search routes
     Route::get('/search', [SearchController::class, 'index'])->name('search.index');
     Route::post('/search', [SearchController::class, 'search'])->name('search.perform');
