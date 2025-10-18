@@ -39,6 +39,32 @@ class TranscribeMediaJob implements ShouldQueue
             return;
         }
 
+        // CRITICAL PRIVACY CHECK: Verify participant has given consent for transcription
+        $message = $this->media->message;
+        if (!$message || !$message->participant) {
+            Log::warning('Cannot transcribe - no message or participant found', [
+                'media_id' => $this->media->id,
+            ]);
+            return;
+        }
+
+        if (!$message->participant->hasTranscriptionConsent()) {
+            Log::info('Skipping transcription - participant has not given consent', [
+                'media_id' => $this->media->id,
+                'participant_id' => $message->participant->id,
+                'participant_name' => $message->participant->name,
+            ]);
+            // Mark as requested but don't transcribe
+            $this->media->update(['transcription_requested' => false]);
+            return;
+        }
+
+        Log::info('Transcription consent verified, proceeding', [
+            'media_id' => $this->media->id,
+            'participant_id' => $message->participant->id,
+            'participant_name' => $message->participant->name,
+        ]);
+
         // Mark as requested
         $this->media->update(['transcription_requested' => true]);
 

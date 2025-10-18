@@ -80,13 +80,24 @@
                                 </div>
                             @elseif ($item->type === 'audio')
                                 <!-- Audio Item -->
-                                <div class="p-4 bg-gray-50 h-48 flex flex-col justify-center">
-                                    <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
-                                    </svg>
-                                    <audio controls class="w-full">
-                                        <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
-                                    </audio>
+                                <div class="p-4 bg-gray-50 h-48 flex flex-col justify-between overflow-hidden">
+                                    <div class="text-center">
+                                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                                        </svg>
+                                    </div>
+
+                                    @if($item->transcription)
+                                        <div class="mb-2 px-2 py-1 bg-white rounded text-xs text-gray-700 overflow-y-auto flex-1 max-h-16">
+                                            <p class="italic">{{ Str::limit($item->transcription, 100) }}</p>
+                                        </div>
+                                    @endif
+
+                                    <div>
+                                        <audio controls class="w-full">
+                                            <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
+                                        </audio>
+                                    </div>
                                 </div>
                             @endif
 

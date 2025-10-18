@@ -75,18 +75,27 @@
                                     </div>
                                 </div>
                             @elseif ($item->type === 'audio')
-                                <div class="bg-gray-100 rounded-lg p-4 h-48 flex flex-col justify-center">
+                                <div class="bg-gray-100 rounded-lg p-4 h-48 flex flex-col justify-between overflow-hidden">
                                     <div class="text-center mb-2">
                                         <svg class="w-12 h-12 mx-auto text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                                             <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z"/>
                                         </svg>
                                     </div>
-                                    <audio controls class="w-full">
-                                        <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
-                                    </audio>
-                                    <div class="mt-2 text-xs text-center text-gray-600">
-                                        <p class="truncate">{{ $item->message->participant->name ?? 'Unknown' }}</p>
-                                        <p class="truncate text-gray-500">{{ $item->message->chat->name }}</p>
+
+                                    @if($item->transcription)
+                                        <div class="mb-2 px-2 py-1 bg-white rounded text-xs text-gray-700 overflow-y-auto flex-1 max-h-20">
+                                            <p class="italic">{{ Str::limit($item->transcription, 120) }}</p>
+                                        </div>
+                                    @endif
+
+                                    <div>
+                                        <audio controls class="w-full">
+                                            <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
+                                        </audio>
+                                        <div class="mt-2 text-xs text-center text-gray-600">
+                                            <p class="truncate">{{ $item->message->participant->name ?? 'Unknown' }}</p>
+                                            <p class="truncate text-gray-500">{{ $item->message->chat->name }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             @endif

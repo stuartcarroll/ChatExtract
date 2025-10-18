@@ -17,6 +17,9 @@ class Participant extends Model
         'chat_id',
         'name',
         'phone_number',
+        'transcription_consent',
+        'transcription_consent_given_at',
+        'transcription_consent_given_by',
     ];
 
     /**
@@ -27,9 +30,30 @@ class Participant extends Model
     protected function casts(): array
     {
         return [
+            'transcription_consent' => 'boolean',
+            'transcription_consent_given_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Check if this participant has given consent for transcription.
+     * CRITICAL PRIVACY CHECK - defaults to false if not explicitly set.
+     *
+     * @return bool
+     */
+    public function hasTranscriptionConsent(): bool
+    {
+        return $this->transcription_consent === true;
+    }
+
+    /**
+     * Get the user who granted transcription consent.
+     */
+    public function consentGrantedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'transcription_consent_given_by');
     }
 
     /**

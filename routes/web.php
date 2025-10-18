@@ -64,6 +64,9 @@ Route::middleware('auth')->group(function () {
     // Transcription routes (admin only)
     Route::get('/transcription/dashboard', [TranscriptionController::class, 'dashboard'])->name('transcription.dashboard');
     Route::get('/transcription/dashboard/status', [TranscriptionController::class, 'dashboardStatus'])->name('transcription.dashboard.status');
+    Route::get('/transcription/participants', [TranscriptionController::class, 'participants'])->name('transcription.participants');
+    Route::get('/transcription/participants/{participant}', [TranscriptionController::class, 'participantProfile'])->name('transcription.participant.profile');
+    Route::post('/transcription/participants/{participant}/consent', [TranscriptionController::class, 'updateConsent'])->name('transcription.consent.update');
     Route::post('/media/{media}/transcribe', [TranscriptionController::class, 'transcribeSingle'])->name('media.transcribe');
     Route::post('/chats/{chat}/transcribe', [TranscriptionController::class, 'transcribeChat'])->name('chats.transcribe');
     Route::get('/chats/{chat}/transcription-status', [TranscriptionController::class, 'status'])->name('chats.transcription.status');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Chat;
 use App\Models\Media;
+use App\Models\Participant;
 use App\Jobs\TranscribeMediaJob;
 use Illuminate\Http\Request;
 
@@ -35,6 +36,14 @@ class TranscriptionController extends Controller
             return back()->with('info', 'This audio has already been transcribed.');
         }
 
+        // CRITICAL PRIVACY CHECK: Verify participant consent
+        $participant = $media->message->participant;
+        if (!$participant || !$participant->hasTranscriptionConsent()) {
+            return back()->withErrors([
+                'error' => 'Cannot transcribe - participant "' . ($participant?->name ?? 'Unknown') . '" has not given consent for transcription. Please grant consent in the Transcription Dashboard first.'
+            ]);
+        }
+
         // Dispatch transcription job
         TranscribeMediaJob::dispatch($media);
 
@@ -56,26 +65,42 @@ class TranscriptionController extends Controller
             abort(403);
         }
 
-        // Get all untranscribed audio files from this chat
+        // Get all untranscribed audio files from participants WHO HAVE GIVEN CONSENT
         $audioFiles = Media::whereHas('message', function ($query) use ($chat) {
-            $query->where('chat_id', $chat->id);
+            $query->where('chat_id', $chat->id)
+                  // CRITICAL PRIVACY FILTER: Only include messages from participants who have consented
+                  ->whereHas('participant', function ($participantQuery) {
+                      $participantQuery->where('transcription_consent', true);
+                  });
         })
         ->where('type', 'audio')
         ->whereNull('transcription')
+        ->with('message.participant') // Load relationships for checking
         ->get();
 
         if ($audioFiles->isEmpty()) {
-            return back()->with('info', 'No audio files to transcribe.');
+            return back()->with('info', 'No audio files to transcribe from participants who have given consent. Please grant consent in the Transcription Dashboard first.');
         }
 
-        // Dispatch jobs for each audio file
+        // Dispatch jobs for each audio file (consent already verified by query)
         $count = 0;
+        $skipped = 0;
         foreach ($audioFiles as $audio) {
-            TranscribeMediaJob::dispatch($audio);
-            $count++;
+            // Double-check consent as additional safety measure
+            if ($audio->message->participant && $audio->message->participant->hasTranscriptionConsent()) {
+                TranscribeMediaJob::dispatch($audio);
+                $count++;
+            } else {
+                $skipped++;
+            }
         }
 
-        return back()->with('success', "Started transcription for {$count} audio " . str('file')->plural($count) . ". This may take a while.");
+        $message = "Started transcription for {$count} audio " . str('file')->plural($count) . " from participants who have given consent. This may take a while.";
+        if ($skipped > 0) {
+            $message .= " Skipped {$skipped} files from participants without consent.";
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
@@ -187,5 +212,133 @@ class TranscriptionController extends Controller
             });
 
         return response()->json($chats);
+    }
+
+    /**
+     * Show participant consent management page.
+     */
+    public function participants()
+    {
+        // Check if user is admin
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can manage transcription consent.');
+        }
+
+        // Get all participants from user's chats with audio message counts
+        $participants = Participant::whereHas('messages.chat', function ($query) {
+            $query->where('user_id', auth()->id());
+        })
+        ->withCount(['messages as audio_messages_count' => function ($query) {
+            $query->whereHas('media', function ($q) {
+                $q->where('type', 'audio');
+            });
+        }])
+        ->with('consentGrantedBy')
+        ->orderBy('name')
+        ->get();
+
+        return view('transcription.participants', compact('participants'));
+    }
+
+    /**
+     * Update participant transcription consent.
+     */
+    public function updateConsent(Participant $participant, Request $request)
+    {
+        // Check if user is admin
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can manage transcription consent.');
+        }
+
+        // Verify user has access to this participant's chats
+        $hasAccess = $participant->messages()->whereHas('chat', function ($query) {
+            $query->where('user_id', auth()->id());
+        })->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'You do not have access to manage this participant.');
+        }
+
+        $request->validate([
+            'consent' => 'required|boolean',
+        ]);
+
+        $consent = $request->boolean('consent');
+
+        $participant->update([
+            'transcription_consent' => $consent,
+            'transcription_consent_given_at' => $consent ? now() : null,
+            'transcription_consent_given_by' => $consent ? auth()->id() : null,
+        ]);
+
+        $action = $consent ? 'granted' : 'revoked';
+        return back()->with('success', "Transcription consent {$action} for {$participant->name}.");
+    }
+
+    /**
+     * Show participant profile with statistics (admin only).
+     */
+    public function participantProfile(Participant $participant)
+    {
+        // Check if user is admin
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can view participant profiles.');
+        }
+
+        // Verify user has access to this participant's chats
+        $hasAccess = $participant->messages()->whereHas('chat', function ($query) {
+            $query->where('user_id', auth()->id());
+        })->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'You do not have access to this participant.');
+        }
+
+        // Get statistics
+        $stats = [
+            'total_messages' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->count(),
+
+            'audio_messages' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->whereHas('media', function ($query) {
+                $query->where('type', 'audio');
+            })->count(),
+
+            'transcribed_audio' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->whereHas('media', function ($query) {
+                $query->where('type', 'audio')->whereNotNull('transcription');
+            })->count(),
+
+            'images_sent' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->whereHas('media', function ($query) {
+                $query->where('type', 'image');
+            })->count(),
+
+            'videos_sent' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->whereHas('media', function ($query) {
+                $query->where('type', 'video');
+            })->count(),
+
+            'chats_participated' => $participant->messages()->whereHas('chat', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->distinct('chat_id')->count('chat_id'),
+        ];
+
+        // Get chats this participant is in
+        $chats = Chat::where('user_id', auth()->id())
+            ->whereHas('messages', function ($query) use ($participant) {
+                $query->where('participant_id', $participant->id);
+            })
+            ->withCount(['messages' => function ($query) use ($participant) {
+                $query->where('participant_id', $participant->id);
+            }])
+            ->get();
+
+        return view('transcription.participant-profile', compact('participant', 'stats', 'chats'));
     }
 }
