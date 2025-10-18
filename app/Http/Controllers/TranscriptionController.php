@@ -107,4 +107,85 @@ class TranscriptionController extends Controller
             'remaining' => ($stats->total ?? 0) - ($stats->transcribed ?? 0) - ($stats->pending ?? 0),
         ]);
     }
+
+    /**
+     * Show transcription dashboard for all chats.
+     */
+    public function dashboard()
+    {
+        // Check if user is admin
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can access the transcription dashboard.');
+        }
+
+        // Get all user's chats with audio files
+        $chats = Chat::where('user_id', auth()->id())
+            ->whereHas('messages.media', function ($query) {
+                $query->where('type', 'audio');
+            })
+            ->withCount(['messages as audio_count' => function ($query) {
+                $query->whereHas('media', function ($q) {
+                    $q->where('type', 'audio');
+                });
+            }])
+            ->with(['messages' => function ($query) {
+                $query->whereHas('media', function ($q) {
+                    $q->where('type', 'audio');
+                })
+                ->with(['media' => function ($q) {
+                    $q->where('type', 'audio');
+                }]);
+            }])
+            ->orderByDesc('last_message_at')
+            ->get()
+            ->map(function ($chat) {
+                $audioFiles = $chat->messages->pluck('media')->flatten()->where('type', 'audio');
+
+                return [
+                    'id' => $chat->id,
+                    'name' => $chat->name,
+                    'last_message_at' => $chat->last_message_at,
+                    'total_audio' => $audioFiles->count(),
+                    'transcribed' => $audioFiles->whereNotNull('transcription')->count(),
+                    'pending' => $audioFiles->where('transcription_requested', true)->whereNull('transcription')->count(),
+                    'not_started' => $audioFiles->whereNull('transcription_requested')->count(),
+                ];
+            });
+
+        return view('transcription.dashboard', compact('chats'));
+    }
+
+    /**
+     * Get real-time transcription status for dashboard updates.
+     */
+    public function dashboardStatus()
+    {
+        // Check if user is admin
+        if (!auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        // Get all user's chats with audio files
+        $chats = Chat::where('user_id', auth()->id())
+            ->whereHas('messages.media', function ($query) {
+                $query->where('type', 'audio');
+            })
+            ->with(['messages.media' => function ($query) {
+                $query->where('type', 'audio');
+            }])
+            ->get()
+            ->map(function ($chat) {
+                $audioFiles = $chat->messages->pluck('media')->flatten()->where('type', 'audio');
+
+                return [
+                    'id' => $chat->id,
+                    'total_audio' => $audioFiles->count(),
+                    'transcribed' => $audioFiles->whereNotNull('transcription')->count(),
+                    'pending' => $audioFiles->where('transcription_requested', true)->whereNull('transcription')->count(),
+                    'not_started' => $audioFiles->whereNull('transcription_requested')->count(),
+                ];
+            });
+
+        return response()->json($chats);
+    }
 }

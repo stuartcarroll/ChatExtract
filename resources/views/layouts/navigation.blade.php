@@ -27,6 +27,11 @@
                     <x-nav-link :href="route('import.dashboard')" :active="request()->routeIs('import.dashboard')">
                         {{ __('Imports') }}
                     </x-nav-link>
+                    @if(auth()->user()->isAdmin())
+                    <x-nav-link :href="route('transcription.dashboard')" :active="request()->routeIs('transcription.dashboard')">
+                        {{ __('Transcriptions') }}
+                    </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -91,6 +96,11 @@
             <x-responsive-nav-link :href="route('import.dashboard')" :active="request()->routeIs('import.dashboard')">
                 {{ __('Imports') }}
             </x-responsive-nav-link>
+            @if(auth()->user()->isAdmin())
+            <x-responsive-nav-link :href="route('transcription.dashboard')" :active="request()->routeIs('transcription.dashboard')">
+                {{ __('Transcriptions') }}
+            </x-responsive-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->
