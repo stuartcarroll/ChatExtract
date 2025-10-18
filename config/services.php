@@ -68,4 +68,17 @@ return [
         'model' => env('CLAUDE_MODEL', 'claude-3-haiku-20240307'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | OpenAI Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for OpenAI API used for audio transcription via Whisper.
+    |
+    */
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+    ],
+
 ];
