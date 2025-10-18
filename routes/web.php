@@ -19,11 +19,22 @@ Route::get('/dashboard', function () {
     return redirect()->route('chats.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Two-Factor Challenge routes (outside auth middleware)
+Route::get('/two-factor/challenge', [App\Http\Controllers\TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+Route::post('/two-factor/challenge', [App\Http\Controllers\TwoFactorChallengeController::class, 'store'])->name('two-factor.verify');
+
 Route::middleware('auth')->group(function () {
     // Profile routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Two-Factor Authentication routes
+    Route::get('/two-factor', [App\Http\Controllers\TwoFactorController::class, 'show'])->name('two-factor.show');
+    Route::post('/two-factor', [App\Http\Controllers\TwoFactorController::class, 'enable'])->name('two-factor.enable');
+    Route::delete('/two-factor', [App\Http\Controllers\TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::get('/two-factor/recovery-codes', [App\Http\Controllers\TwoFactorController::class, 'showRecoveryCodes'])->name('two-factor.recovery-codes');
+    Route::post('/two-factor/recovery-codes', [App\Http\Controllers\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes.regenerate');
 
     // Chat routes
     Route::resource('chats', ChatController::class);

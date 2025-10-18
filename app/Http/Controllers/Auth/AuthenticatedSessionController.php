@@ -26,6 +26,19 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        // Check if user has two-factor authentication enabled
+        $user = Auth::user();
+
+        if ($user && $user->hasTwoFactorEnabled()) {
+            // Don't fully log in yet - store user ID in session for 2FA challenge
+            Auth::logout();
+
+            $request->session()->put('two_factor:user', $user->id);
+            $request->session()->put('two_factor:remember', $request->filled('remember'));
+
+            return redirect()->route('two-factor.challenge');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));

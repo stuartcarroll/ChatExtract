@@ -33,6 +33,9 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'email_otp_secret',
     ];
 
     /**
@@ -46,6 +49,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
+            'email_otp_expires_at' => 'datetime',
         ];
     }
 
@@ -105,5 +110,70 @@ class User extends Authenticatable
 
         // Return query builder for all accessible chats
         return Chat::whereIn('id', $allChatIds);
+    }
+
+    /**
+     * Check if two-factor authentication is enabled.
+     */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return !is_null($this->two_factor_confirmed_at);
+    }
+
+    /**
+     * Generate recovery codes for two-factor authentication.
+     */
+    public function generateRecoveryCodes(): array
+    {
+        $codes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $codes[] = strtoupper(bin2hex(random_bytes(5)));
+        }
+
+        $this->two_factor_recovery_codes = encrypt(json_encode($codes));
+        $this->save();
+
+        return $codes;
+    }
+
+    /**
+     * Get decrypted recovery codes.
+     */
+    public function getRecoveryCodes(): array
+    {
+        if (!$this->two_factor_recovery_codes) {
+            return [];
+        }
+
+        return json_decode(decrypt($this->two_factor_recovery_codes), true);
+    }
+
+    /**
+     * Use a recovery code.
+     */
+    public function useRecoveryCode(string $code): bool
+    {
+        $codes = $this->getRecoveryCodes();
+
+        $index = array_search(strtoupper($code), $codes);
+
+        if ($index === false) {
+            return false;
+        }
+
+        // Remove the used code
+        unset($codes[$index]);
+        $codes = array_values($codes);
+
+        // Save remaining codes
+        if (empty($codes)) {
+            $this->two_factor_recovery_codes = null;
+        } else {
+            $this->two_factor_recovery_codes = encrypt(json_encode($codes));
+        }
+
+        $this->save();
+
+        return true;
     }
 }
