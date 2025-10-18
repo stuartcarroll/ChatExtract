@@ -64,10 +64,14 @@ class ProcessChatImportJob implements ShouldQueue
             // STAGE 1: Extract ZIP if needed
             if ($this->isZip) {
                 $progress->update(['status' => 'extracting']);
-                $progress->addLog("Extracting ZIP file: {$this->filePath}");
+                $progress->addLog("Starting ZIP extraction: {$this->filePath}");
+
+                $fileSize = filesize($this->filePath);
+                $progress->addLog("ZIP file size: " . round($fileSize / 1024 / 1024, 2) . " MB");
 
                 $extractPath = storage_path('app/temp/' . Str::uuid());
                 mkdir($extractPath, 0755, true);
+                $progress->addLog("Created extraction directory: " . basename($extractPath));
 
                 $zip = new \ZipArchive();
                 $zipStatus = $zip->open($this->filePath);
@@ -75,10 +79,11 @@ class ProcessChatImportJob implements ShouldQueue
                 if ($zipStatus === true) {
                     $fileCount = $zip->numFiles;
                     $progress->addLog("ZIP opened successfully, contains {$fileCount} files");
+                    $progress->addLog("Extracting {$fileCount} files...");
 
                     $zip->extractTo($extractPath);
                     $zip->close();
-                    $progress->addLog("ZIP extracted to temporary directory");
+                    $progress->addLog("ZIP extraction completed successfully");
 
                     // Find the .txt file in the extracted content
                     $files = glob($extractPath . '/*.txt');
@@ -125,7 +130,8 @@ class ProcessChatImportJob implements ShouldQueue
             }
 
             $progress->update(['status' => 'parsing']);
-            $progress->addLog("Parsing WhatsApp chat file");
+            $progress->addLog("Starting WhatsApp chat file parsing");
+            $progress->addLog("Reading file: " . basename($txtFilePath));
 
             $messages = $parser->parseFile($txtFilePath);
 
@@ -135,7 +141,8 @@ class ProcessChatImportJob implements ShouldQueue
 
             $messageCount = count($messages);
             $progress->update(['total_messages' => $messageCount]);
-            $progress->addLog("Parsed {$messageCount} messages from chat");
+            $progress->addLog("Successfully parsed {$messageCount} messages from chat");
+            $progress->addLog("Detecting participants and media references...");
 
             // STAGE 3: Create chat
             $progress->refresh();
@@ -159,16 +166,24 @@ class ProcessChatImportJob implements ShouldQueue
 
             // STAGE 4: Import messages in chunks
             $progress->update(['status' => 'importing_messages']);
-            $progress->addLog("Importing messages in chunks of 500");
+            $progress->addLog("Starting message import to database");
+            $progress->addLog("Importing {$messageCount} messages in chunks of 500...");
             $this->importMessagesInChunks($chat, $messages, $progress);
-            $progress->addLog("All messages imported successfully");
+            $progress->addLog("All {$messageCount} messages imported successfully");
 
             // STAGE 5: Process media files from ZIP if they exist
             if ($extractPath && file_exists($extractPath)) {
                 $progress->update(['status' => 'processing_media']);
-                $progress->addLog("Processing media files from ZIP archive");
+
+                // Count media files
+                $mediaFiles = glob($extractPath . '/*');
+                $mediaCount = count(array_filter($mediaFiles, fn($f) => is_file($f) && !str_ends_with($f, '.txt')));
+
+                $progress->addLog("Found {$mediaCount} media files in ZIP archive");
+                $progress->addLog("Processing media files (matching with messages)...");
                 $this->processMediaFiles($chat, $extractPath, $progress);
-                $progress->addLog("Media processing completed");
+                $progress->addLog("Media processing completed - imported {$progress->processed_media} files");
+                $progress->addLog("Breakdown: {$progress->images_count} images, {$progress->videos_count} videos, {$progress->audio_count} audio files");
             }
 
             $progress->update([
@@ -221,8 +236,14 @@ class ProcessChatImportJob implements ShouldQueue
         $participantCache = [];
         $chunkSize = 500;
         $chunks = array_chunk($messages, $chunkSize);
+        $totalChunks = count($chunks);
 
-        foreach ($chunks as $chunk) {
+        foreach ($chunks as $chunkIndex => $chunk) {
+            // Log progress every 5 chunks
+            if (($chunkIndex + 1) % 5 === 0 || $chunkIndex === 0 || $chunkIndex === $totalChunks - 1) {
+                $progress->addLog("Processing message chunk " . ($chunkIndex + 1) . "/{$totalChunks} ({$progress->processed_messages}/{$progress->total_messages} messages)");
+            }
+
             DB::transaction(function () use ($chat, $chunk, $progress, &$participantCache) {
                 foreach ($chunk as $messageData) {
                     try {

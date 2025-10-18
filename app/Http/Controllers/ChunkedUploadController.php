@@ -128,6 +128,12 @@ class ChunkedUploadController extends Controller
                 'uploaded_chunks' => $uploadedChunks,
             ]);
 
+            // Log to processing log every 10 chunks or on milestones
+            if ($uploadedChunks % 10 === 0 || $uploadedChunks === 1 || $uploadedChunks === $progress->total_chunks) {
+                $percentage = round(($uploadedChunks / $progress->total_chunks) * 100, 1);
+                $progress->addLog("Uploading: {$uploadedChunks}/{$progress->total_chunks} chunks ({$percentage}%)");
+            }
+
             \Log::info('Chunk uploaded successfully', [
                 'upload_id' => $uploadId,
                 'chunk_index' => $chunkIndex,
