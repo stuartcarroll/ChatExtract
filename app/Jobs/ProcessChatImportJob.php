@@ -49,6 +49,12 @@ class ProcessChatImportJob implements ShouldQueue
             return;
         }
 
+        // Check if import was cancelled before we even started
+        if ($progress->status === 'cancelled') {
+            Log::info('Import was cancelled before processing started', ['id' => $this->importProgressId]);
+            return;
+        }
+
         $extractPath = null;
 
         try {
@@ -112,6 +118,12 @@ class ProcessChatImportJob implements ShouldQueue
             }
 
             // STAGE 2: Parse messages
+            $progress->refresh();
+            if ($progress->status === 'cancelled') {
+                $progress->addLog("Import cancelled during extraction");
+                return;
+            }
+
             $progress->update(['status' => 'parsing']);
             $progress->addLog("Parsing WhatsApp chat file");
 
@@ -126,6 +138,12 @@ class ProcessChatImportJob implements ShouldQueue
             $progress->addLog("Parsed {$messageCount} messages from chat");
 
             // STAGE 3: Create chat
+            $progress->refresh();
+            if ($progress->status === 'cancelled') {
+                $progress->addLog("Import cancelled during parsing");
+                return;
+            }
+
             $progress->update(['status' => 'creating_chat']);
             $progress->addLog("Creating chat: {$this->chatName}");
 

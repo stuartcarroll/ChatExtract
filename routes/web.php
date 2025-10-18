@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/import/{progress}/progress', [ImportController::class, 'progress'])->name('import.progress');
     Route::get('/import/{progress}/status', [ImportController::class, 'progressStatus'])->name('import.status');
     Route::post('/import/{progress}/retry', [ImportController::class, 'retry'])->name('import.retry');
+    Route::post('/import/{progress}/cancel', [ImportController::class, 'cancel'])->name('import.cancel');
     Route::post('/chats/{chat}/media', [ImportController::class, 'uploadMedia'])->name('import.media');
 
     // Chunked upload routes

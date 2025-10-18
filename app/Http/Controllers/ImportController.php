@@ -93,7 +93,7 @@ class ImportController extends Controller
             abort(403);
         }
 
-        return view('chats.import-progress', compact('progress'));
+        return view('import.progress', compact('progress'));
     }
 
     /**
@@ -487,6 +487,43 @@ class ImportController extends Controller
 
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error retrying import: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Cancel an in-progress import.
+     */
+    public function cancel(ImportProgress $progress)
+    {
+        // Authorize the user
+        if ($progress->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        // Can only cancel imports that are in progress
+        $cancellableStatuses = ['uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media'];
+
+        if (!in_array($progress->status, $cancellableStatuses)) {
+            return back()->withErrors(['error' => 'This import cannot be cancelled. It may have already completed or failed.']);
+        }
+
+        try {
+            // Update status to cancelled
+            $progress->update([
+                'status' => 'cancelled',
+                'completed_at' => now(),
+            ]);
+
+            $progress->addLog("Import cancelled by user at " . now()->format('Y-m-d H:i:s'));
+
+            // Note: The actual job may still be running in the queue.
+            // The job should check the status and exit gracefully if cancelled.
+
+            return redirect()->route('import.dashboard')
+                ->with('success', 'Import has been cancelled.');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error cancelling import: ' . $e->getMessage()]);
         }
     }
 }
