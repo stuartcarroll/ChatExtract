@@ -36,12 +36,17 @@
 
                         <!-- Quick Filters (Collapsible) -->
                         <div x-data="{ open: {{ count(request()->except('_token', 'query')) > 0 ? 'true' : 'false' }} }" class="border-t pt-4">
-                            <button type="button" @click="open = !open" class="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3">
-                                <svg class="w-4 h-4 mr-2 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                </svg>
-                                <span x-text="open ? 'Hide filters' : 'Show filters'"></span>
-                            </button>
+                            <div class="flex items-center justify-between mb-3">
+                                <button type="button" @click="open = !open" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                                    <svg class="w-4 h-4 mr-2 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                    <span x-text="open ? 'Hide filters' : 'Show filters'"></span>
+                                </button>
+                                @if(count(request()->except('_token', 'query')) > 0)
+                                <a href="{{ route('search.index') }}" class="text-xs text-red-600 hover:text-red-800">Clear all filters</a>
+                                @endif
+                            </div>
 
                             <div x-show="open" x-collapse class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <!-- Chat Filter -->
@@ -60,13 +65,13 @@
                                 <!-- Date From -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">From Date</label>
-                                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full text-sm rounded-md border-gray-300">
+                                    <input type="date" name="date_from" value="{{ request('date_from') }}" placeholder="Any date" class="w-full text-sm rounded-md border-gray-300">
                                 </div>
 
                                 <!-- Date To -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">To Date</label>
-                                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full text-sm rounded-md border-gray-300">
+                                    <input type="date" name="date_to" value="{{ request('date_to') }}" placeholder="Any date" class="w-full text-sm rounded-md border-gray-300">
                                 </div>
 
                                 <!-- Participant Filter -->
@@ -121,6 +126,19 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Active Filters Notice -->
+                        @if(count(request()->except('_token', 'query')) > 0)
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center justify-between">
+                            <div class="flex items-center">
+                                <svg class="w-4 h-4 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <span class="text-sm text-yellow-800 font-medium">Filters are active - results may be limited</span>
+                            </div>
+                            <a href="{{ route('search.index') }}" class="text-xs text-yellow-800 hover:text-yellow-900 underline">Clear all</a>
+                        </div>
+                        @endif
 
                         <!-- Search Button -->
                         <div class="flex justify-center pt-2">
