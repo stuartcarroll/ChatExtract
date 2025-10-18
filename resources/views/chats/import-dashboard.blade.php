@@ -18,27 +18,25 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Summary Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-gray-600 mb-1">Total Imports</div>
-                    <div class="text-3xl font-bold text-gray-800">{{ $imports->total() }}</div>
-                </div>
-                <div class="bg-blue-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-blue-600 mb-1">In Progress</div>
-                    <div class="text-3xl font-bold text-blue-600" id="in-progress-count">
-                        {{ $imports->whereIn('status', ['pending', 'uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media'])->count() }}
-                    </div>
-                </div>
-                <div class="bg-green-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-green-600 mb-1">Completed</div>
-                    <div class="text-3xl font-bold text-green-600" id="completed-count">
-                        {{ $imports->where('status', 'completed')->count() }}
-                    </div>
-                </div>
-                <div class="bg-red-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-red-600 mb-1">Failed</div>
-                    <div class="text-3xl font-bold text-red-600" id="failed-count">
-                        {{ $imports->where('status', 'failed')->count() }}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-4">
+                <div class="p-3">
+                    <div class="flex items-center justify-between text-sm">
+                        <div>
+                            <span class="text-gray-600">Total:</span>
+                            <span class="font-semibold ml-1">{{ $imports->total() }}</span>
+                        </div>
+                        <div>
+                            <span class="text-blue-600">In Progress:</span>
+                            <span class="font-semibold ml-1" id="in-progress-count">{{ $imports->whereIn('status', ['pending', 'uploading', 'extracting', 'parsing', 'creating_chat', 'importing_messages', 'processing_media'])->count() }}</span>
+                        </div>
+                        <div>
+                            <span class="text-green-600">Completed:</span>
+                            <span class="font-semibold ml-1" id="completed-count">{{ $imports->where('status', 'completed')->count() }}</span>
+                        </div>
+                        <div>
+                            <span class="text-red-600">Failed:</span>
+                            <span class="font-semibold ml-1" id="failed-count">{{ $imports->where('status', 'failed')->count() }}</span>
+                        </div>
                     </div>
                 </div>
             </div>

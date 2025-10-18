@@ -15,35 +15,28 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Summary Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-gray-600 mb-1">Total Voice Notes</div>
-                    <div class="text-3xl font-bold text-gray-800" id="total-audio">
-                        {{ $chats->sum('total_audio') }}
-                    </div>
-                    <div class="text-xs text-gray-500 mt-1">Across {{ $chats->count() }} chats</div>
-                </div>
-                <div class="bg-green-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-green-600 mb-1">Transcribed</div>
-                    <div class="text-3xl font-bold text-green-600" id="transcribed-count">
-                        {{ $chats->sum('transcribed') }}
-                    </div>
-                    @if($chats->sum('total_audio') > 0)
-                    <div class="text-xs text-gray-500 mt-1">
-                        {{ round(($chats->sum('transcribed') / $chats->sum('total_audio')) * 100) }}% complete
-                    </div>
-                    @endif
-                </div>
-                <div class="bg-blue-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-blue-600 mb-1">In Progress</div>
-                    <div class="text-3xl font-bold text-blue-600" id="pending-count">
-                        {{ $chats->sum('pending') }}
-                    </div>
-                </div>
-                <div class="bg-gray-50 overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="text-sm text-gray-600 mb-1">Not Started</div>
-                    <div class="text-3xl font-bold text-gray-600" id="not-started-count">
-                        {{ $chats->sum('not_started') }}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-4">
+                <div class="p-3">
+                    <div class="flex items-center justify-between text-sm">
+                        <div>
+                            <span class="text-gray-600">Total:</span>
+                            <span class="font-semibold ml-1" id="total-audio">{{ $chats->sum('total_audio') }}</span>
+                        </div>
+                        <div>
+                            <span class="text-green-600">Transcribed:</span>
+                            <span class="font-semibold ml-1" id="transcribed-count">{{ $chats->sum('transcribed') }}</span>
+                            @if($chats->sum('total_audio') > 0)
+                            <span class="text-xs text-gray-500 ml-1">({{ round(($chats->sum('transcribed') / $chats->sum('total_audio')) * 100) }}%)</span>
+                            @endif
+                        </div>
+                        <div>
+                            <span class="text-blue-600">In Progress:</span>
+                            <span class="font-semibold ml-1" id="pending-count">{{ $chats->sum('pending') }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Not Started:</span>
+                            <span class="font-semibold ml-1" id="not-started-count">{{ $chats->sum('not_started') }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
