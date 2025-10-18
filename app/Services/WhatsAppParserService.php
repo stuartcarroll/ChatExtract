@@ -71,7 +71,64 @@ class WhatsAppParserService
             $messages[] = $currentMessage;
         }
 
+        // Split messages that contain embedded media into separate messages
+        $messages = $this->splitEmbeddedMedia($messages);
+
         return $messages;
+    }
+
+    /**
+     * Split messages that have embedded media lines into separate messages.
+     * For example, a message followed by "[timestamp] Name: <attached: file.opus>" should be two messages.
+     *
+     * @param array $messages
+     * @return array
+     */
+    protected function splitEmbeddedMedia(array $messages): array
+    {
+        $splitMessages = [];
+
+        foreach ($messages as $message) {
+            $content = $message['content'];
+
+            // Look for embedded message lines with media attachments
+            // Pattern: newline followed by timestamp/participant and media attachment
+            $pattern = '/\n(‎?\[?\d{1,2}\/\d{1,2}\/\d{2,4}[^\n]*?:\s*‎?<attached:[^>]+>)/u';
+
+            if (preg_match($pattern, $content, $matches, PREG_OFFSET_CAPTURE)) {
+                // Split the content
+                $firstPart = substr($content, 0, $matches[0][1]); // Before the embedded line
+                $secondPart = $matches[1][0]; // The embedded media line
+
+                // Create first message with the text before the media
+                if (trim($firstPart)) {
+                    $splitMessages[] = [
+                        'timestamp' => $message['timestamp'],
+                        'participant' => $message['participant'],
+                        'content' => trim($firstPart),
+                        'is_system_message' => $message['is_system_message'],
+                        'has_media' => false,
+                        'media_info' => null,
+                    ];
+                }
+
+                // Parse the embedded media line as a separate message
+                $embeddedLine = ltrim($secondPart, "\n\r‎");
+                $parsedEmbedded = $this->parseMessageLine($embeddedLine);
+
+                if ($parsedEmbedded !== null) {
+                    $splitMessages[] = $parsedEmbedded;
+                } else {
+                    // If parsing failed, add it as part of the original message
+                    $splitMessages[] = $message;
+                }
+            } else {
+                // No embedded media, keep as-is
+                $splitMessages[] = $message;
+            }
+        }
+
+        return $splitMessages;
     }
 
     /**
