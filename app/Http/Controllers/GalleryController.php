@@ -93,7 +93,7 @@ class GalleryController extends Controller
         // If AJAX request, return JSON for infinite scroll
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
-                'html' => view('gallery.partials.media-grid', compact('media', 'tags'))->render(),
+                'html' => view('gallery.partials.media-grid-v2', compact('media', 'tags'))->render(),
                 'has_more' => $media->hasMorePages(),
                 'next_page' => $media->currentPage() + 1
             ]);
