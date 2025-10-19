@@ -36,6 +36,11 @@ class TagController extends Controller
             'name' => $request->name,
         ]);
 
+        // If called from inline form, redirect back to where they were
+        if ($request->has('redirect_back')) {
+            return back()->with('success', 'Tag "' . $tag->name . '" created successfully.');
+        }
+
         return redirect()->route('tags.index')
             ->with('success', 'Tag created successfully.');
     }

@@ -253,8 +253,9 @@
                                                     </button>
                                                     <form x-show="showNewTag" x-collapse action="{{ route('tags.store') }}" method="POST" class="flex gap-1" onclick="event.stopPropagation()">
                                                         @csrf
-                                                        <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50">
-                                                        <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition">
+                                                        <input type="hidden" name="redirect_back" value="1">
+                                                        <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50" onclick="event.stopPropagation()">
+                                                        <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition" onclick="event.stopPropagation()">
                                                             Create
                                                         </button>
                                                     </form>

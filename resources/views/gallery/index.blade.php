@@ -122,10 +122,10 @@
                                 <!-- Current tags -->
                                 <div class="flex flex-wrap gap-1 mb-1">
                                     @foreach($item->message->tags as $tag)
-                                    <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                    <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
                                         @csrf
                                         <input type="hidden" name="tag_id" value="{{ $tag->id }}">
-                                        <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition">
+                                        <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition" onclick="event.stopPropagation()">
                                             {{ $tag->name }}
                                             <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -136,14 +136,14 @@
                                 </div>
 
                                 <!-- Available tags (collapsible) -->
-                                <div x-show="showTags" x-collapse class="pt-1 border-t border-gray-200 mt-1">
+                                <div x-show="showTags" x-collapse class="pt-1 border-t border-gray-200 mt-1" onclick="event.stopPropagation()">
                                     <div class="flex flex-wrap gap-1 mb-2">
                                         @foreach($tags as $tag)
                                             @if(!$item->message->tags->contains($tag->id))
-                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
                                                 @csrf
                                                 <input type="hidden" name="tag_id" value="{{ $tag->id }}">
-                                                <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
+                                                <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition" onclick="event.stopPropagation()">
                                                     + {{ $tag->name }}
                                                 </button>
                                             </form>
@@ -152,15 +152,16 @@
                                     </div>
 
                                     <!-- Create new tag inline -->
-                                    <div class="border-t border-gray-300 pt-2">
-                                        <button type="button" @click="showNewTag = !showNewTag" class="text-xs text-green-600 hover:text-green-800 font-medium mb-1">
+                                    <div class="border-t border-gray-300 pt-2" onclick="event.stopPropagation()">
+                                        <button type="button" @click="showNewTag = !showNewTag" class="text-xs text-green-600 hover:text-green-800 font-medium mb-1" onclick="event.stopPropagation()">
                                             <span x-show="!showNewTag">+ Create New Tag</span>
                                             <span x-show="showNewTag">Cancel</span>
                                         </button>
-                                        <form x-show="showNewTag" x-collapse action="{{ route('tags.store') }}" method="POST" class="flex gap-1">
+                                        <form x-show="showNewTag" x-collapse action="{{ route('tags.store') }}" method="POST" class="flex gap-1" onclick="event.stopPropagation()">
                                             @csrf
-                                            <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50">
-                                            <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition">
+                                            <input type="hidden" name="redirect_back" value="1">
+                                            <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50" onclick="event.stopPropagation()">
+                                            <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition" onclick="event.stopPropagation()">
                                                 Create
                                             </button>
                                         </form>
