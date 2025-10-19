@@ -85,8 +85,8 @@ class GalleryController extends Controller
                 ->unique('name');
         }
 
-        // Get user's tags for tagging interface
-        $tags = auth()->user()->tags()->orderBy('name')->get();
+        // Get all tags for tagging interface (global)
+        $tags = Tag::orderBy('name')->get();
 
         return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId', 'tags', 'sort'));
     }

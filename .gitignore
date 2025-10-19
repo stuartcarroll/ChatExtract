@@ -5,6 +5,7 @@
 /public/storage
 /docs
 /test-plan
+/code-review
 /storage/*.key
 /storage/pail
 /vendor

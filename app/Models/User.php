@@ -86,14 +86,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the tags created by the user.
-     */
-    public function tags(): HasMany
-    {
-        return $this->hasMany(Tag::class);
-    }
-
-    /**
      * Get the import progress records for the user.
      */
     public function importProgress(): HasMany

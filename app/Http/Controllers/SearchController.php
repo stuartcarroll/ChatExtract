@@ -16,8 +16,8 @@ class SearchController extends Controller
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
 
-        // Get user's tags for filter dropdown
-        $tags = auth()->user()->tags()->get();
+        // Get all tags for filter dropdown (global)
+        $tags = Tag::orderBy('name')->get();
 
         // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
@@ -160,8 +160,8 @@ class SearchController extends Controller
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
 
-        // Get user's tags for filter dropdown
-        $tags = auth()->user()->tags()->get();
+        // Get all tags for filter dropdown (global)
+        $tags = Tag::orderBy('name')->get();
 
         // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
@@ -264,8 +264,8 @@ class SearchController extends Controller
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
 
-        // Get user's tags for filter dropdown
-        $tags = auth()->user()->tags()->get();
+        // Get all tags for filter dropdown (global)
+        $tags = Tag::orderBy('name')->get();
 
         return view('search.index', compact('results', 'chats', 'tags'));
     }

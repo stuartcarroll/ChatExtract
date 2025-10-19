@@ -90,8 +90,8 @@ class ChatController extends Controller
         $statistics['audio_files'] = $audioStats->total ?? 0;
         $statistics['transcribed_audio'] = $audioStats->transcribed ?? 0;
 
-        // Get user's tags for tagging interface
-        $tags = auth()->user()->tags()->orderBy('name')->get();
+        // Get all tags for tagging interface (global)
+        $tags = Tag::orderBy('name')->get();
 
         return view('chats.show', compact('chat', 'messages', 'statistics', 'highlightMessageId', 'tags'));
     }
@@ -273,8 +273,8 @@ class ChatController extends Controller
             'audio' => $countsRaw->audio ?? 0,
         ];
 
-        // Get user's tags for tagging interface
-        $tags = auth()->user()->tags()->orderBy('name')->get();
+        // Get all tags for tagging interface (global)
+        $tags = Tag::orderBy('name')->get();
 
         return view('chats.gallery', compact('chat', 'media', 'type', 'counts', 'tags', 'sort'));
     }
@@ -340,8 +340,8 @@ class ChatController extends Controller
         // Get participants for filter dropdown
         $participants = $chat->participants()->get();
 
-        // Get tags for filter dropdown
-        $tags = auth()->user()->tags()->get();
+        // Get all tags for filter dropdown (global)
+        $tags = Tag::orderBy('name')->get();
 
         return view('chats.show', compact('chat', 'messages', 'statistics', 'participants', 'tags'));
     }

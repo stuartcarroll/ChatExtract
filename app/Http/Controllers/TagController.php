@@ -9,24 +9,30 @@ use Illuminate\Http\Request;
 class TagController extends Controller
 {
     /**
-     * Display a listing of the user's tags.
+     * Display a listing of all tags (global).
      */
     public function index()
     {
-        $tags = auth()->user()->tags()->withCount('messages')->orderBy('name')->get();
+        // Get all tags with message count (only counting messages user has access to)
+        $userChatIds = auth()->user()->accessibleChatIds()->toArray();
+
+        $tags = Tag::withCount(['messages' => function($query) use ($userChatIds) {
+            $query->whereIn('chat_id', $userChatIds);
+        }])->orderBy('name')->get();
+
         return view('tags.index', compact('tags'));
     }
 
     /**
-     * Store a newly created tag.
+     * Store a newly created tag (global).
      */
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:50|unique:tags,name,NULL,id,user_id,' . auth()->id(),
+            'name' => 'required|string|max:50|unique:tags,name',
         ]);
 
-        $tag = auth()->user()->tags()->create([
+        $tag = Tag::create([
             'name' => $request->name,
         ]);
 
@@ -35,17 +41,12 @@ class TagController extends Controller
     }
 
     /**
-     * Update the specified tag.
+     * Update the specified tag (global - any user can update).
      */
     public function update(Request $request, Tag $tag)
     {
-        // Authorize
-        if ($tag->user_id !== auth()->id()) {
-            abort(403);
-        }
-
         $request->validate([
-            'name' => 'required|string|max:50|unique:tags,name,' . $tag->id . ',id,user_id,' . auth()->id(),
+            'name' => 'required|string|max:50|unique:tags,name,' . $tag->id,
         ]);
 
         $tag->update(['name' => $request->name]);
@@ -55,15 +56,10 @@ class TagController extends Controller
     }
 
     /**
-     * Remove the specified tag.
+     * Remove the specified tag (global - any user can delete).
      */
     public function destroy(Tag $tag)
     {
-        // Authorize
-        if ($tag->user_id !== auth()->id()) {
-            abort(403);
-        }
-
         $tag->delete();
 
         return redirect()->route('tags.index')
@@ -81,13 +77,8 @@ class TagController extends Controller
 
         $tag = Tag::findOrFail($request->tag_id);
 
-        // Authorize - user must own the tag
-        if ($tag->user_id !== auth()->id()) {
-            abort(403);
-        }
-
         // Authorize - user must have access to the message's chat
-        $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+        $userChatIds = auth()->user()->accessibleChatIds()->toArray();
         if (!in_array($message->chat_id, $userChatIds)) {
             abort(403);
         }

@@ -190,21 +190,62 @@
                                         <p class="text-gray-700 mb-2">{{ Str::limit($message->content, 300) }}</p>
 
                                         <!-- Media & Tags -->
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center justify-between mb-3">
                                             <div class="flex items-center space-x-2">
                                                 @if ($message->media->isNotEmpty())
                                                     <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                                                         {{ $message->media->count() }} {{ Str::plural('attachment', $message->media->count()) }}
                                                     </span>
                                                 @endif
-                                                @foreach ($message->tags as $tag)
-                                                    <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">{{ $tag->name }}</span>
-                                                @endforeach
                                             </div>
                                             <a href="{{ route('chats.show', ['chat' => $message->chat_id, 'message' => $message->id]) }}" class="text-sm text-blue-600 hover:text-blue-800">
                                                 View in chat →
                                             </a>
                                         </div>
+
+                                        <!-- Tagging Section -->
+                                        @if($tags->isNotEmpty())
+                                        <div class="bg-gray-50 rounded-lg p-2 border border-gray-200" x-data="{ showTags: false }">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-600">Tags:</span>
+                                                <button type="button" @click="showTags = !showTags" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                    <span x-show="!showTags">+ Add Tag</span>
+                                                    <span x-show="showTags">Hide</span>
+                                                </button>
+                                            </div>
+
+                                            <!-- Current tags -->
+                                            <div class="flex flex-wrap gap-1 mb-1">
+                                                @foreach($message->tags as $tag)
+                                                <form action="{{ route('messages.tag', $message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
+                                                    @csrf
+                                                    <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                    <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition">
+                                                        {{ $tag->name }}
+                                                        <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                                @endforeach
+                                            </div>
+
+                                            <!-- Available tags (collapsible) -->
+                                            <div x-show="showTags" x-collapse class="flex flex-wrap gap-1 pt-1 border-t border-gray-200 mt-1">
+                                                @foreach($tags as $tag)
+                                                    @if(!$message->tags->contains($tag->id))
+                                                    <form action="{{ route('messages.tag', $message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
+                                                        @csrf
+                                                        <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                        <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
+                                                            + {{ $tag->name }}
+                                                        </button>
+                                                    </form>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
