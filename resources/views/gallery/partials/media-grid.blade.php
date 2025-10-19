@@ -45,8 +45,18 @@
         </div>
     @endif
 
-    <!-- Tags -->
+    <!-- Metadata -->
     <div class="p-2 border-t bg-gray-50">
+        <div class="flex items-center justify-between text-xs text-gray-600 mb-2">
+            <span class="font-medium">{{ $item->message->participant->name ?? 'Unknown' }}</span>
+            <span>{{ $item->message->sent_at->format('M d, Y') }}</span>
+        </div>
+        <a href="{{ route('chats.show', $item->message->chat_id) }}#message-{{ $item->message->id }}"
+           class="text-xs text-blue-600 hover:text-blue-800 hover:underline block mb-2">
+            View in Chat →
+        </a>
+
+        <!-- Tags -->
         @if($item->message->tags->count() > 0)
             <div class="flex flex-wrap gap-1">
                 @foreach($item->message->tags->take(2) as $tag)
