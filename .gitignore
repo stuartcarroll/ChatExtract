@@ -3,6 +3,8 @@
 /public/build
 /public/hot
 /public/storage
+/docs
+/test-plan
 /storage/*.key
 /storage/pail
 /vendor
@@ -21,3 +23,46 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Test files and scripts
+test_*.php
+*_test.php
+comprehensive_test.php
+final_test.php
+TEST_RESULTS.txt
+verify_*.php
+search_test*.php
+test_message_link.php
+test_gallery_pagination.php
+
+# Test plan reports (keep documentation, ignore generated reports)
+test-plan/report.html
+test-plan/report.json
+test-plan/screenshots/
+
+# Deployment and server-specific files
+SERVER_SETUP_COMMANDS.md
+DEPLOYMENT_NOTES.md
+deploy_production.sh
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Database files
+*.sql
+*.dump
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Backup files
+*.backup
+backup*/
+
+# Local environment configs
+.env.local

@@ -46,7 +46,9 @@ class ImportController extends Controller
         try {
             // Get the uploaded file
             $file = $request->file('chat_file');
-            $filename = $file->getClientOriginalName();
+            // Sanitize filename to prevent path traversal
+            $filename = basename($file->getClientOriginalName());
+            $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
             $isZip = $file->getClientOriginalExtension() === 'zip';
 
             // Store file quickly - just save to disk, don't extract yet

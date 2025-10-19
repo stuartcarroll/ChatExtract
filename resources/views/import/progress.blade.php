@@ -111,13 +111,18 @@
             <!-- Detailed Statistics -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold mb-4">Import Statistics</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Import Statistics</h3>
+                        <div class="text-xs text-gray-500" id="last-update-time">
+                            Last updated: <span class="font-mono">{{ $progress->updated_at->format('H:i:s') }}</span>
+                        </div>
+                    </div>
 
                     <!-- Messages Progress -->
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-medium text-gray-700">Messages</span>
-                            <span class="text-sm text-gray-600">
+                            <span class="text-sm text-gray-600" id="messages-count">
                                 {{ number_format($progress->processed_messages) }} / {{ number_format($progress->total_messages) }}
                                 @if($progress->total_messages > 0)
                                     ({{ $progress->progress_percentage }}%)
@@ -125,10 +130,15 @@
                             </span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-4">
-                            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300"
+                            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" id="messages-progress-bar"
                                  style="width: {{ $progress->progress_percentage }}%">
                             </div>
                         </div>
+                        @if($progress->total_messages > 0 && $progress->processed_messages > 0)
+                        <div class="text-xs text-gray-500 mt-1" id="messages-rate">
+                            <!-- Rate will be calculated by JS -->
+                        </div>
+                        @endif
                     </div>
 
                     <!-- Media Progress -->
@@ -136,16 +146,21 @@
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-medium text-gray-700">Media Files</span>
-                            <span class="text-sm text-gray-600">
+                            <span class="text-sm text-gray-600" id="media-count">
                                 {{ number_format($progress->processed_media) }} / {{ number_format($progress->total_media) }}
                                 ({{ $progress->media_progress_percentage }}%)
                             </span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-4">
-                            <div class="bg-purple-600 h-4 rounded-full transition-all duration-300"
+                            <div class="bg-purple-600 h-4 rounded-full transition-all duration-300" id="media-progress-bar"
                                  style="width: {{ $progress->media_progress_percentage }}%">
                             </div>
                         </div>
+                        @if($progress->processed_media > 0)
+                        <div class="text-xs text-gray-500 mt-1" id="media-rate">
+                            <!-- Rate will be calculated by JS -->
+                        </div>
+                        @endif
                     </div>
                     @endif
 
@@ -207,6 +222,11 @@
         const now = new Date();
         const minutesSinceUpdate = Math.floor((now - lastUpdated) / 1000 / 60);
 
+        // Track previous values for rate calculation
+        let previousMessagesProcessed = {{ $progress->processed_messages }};
+        let previousMediaProcessed = {{ $progress->processed_media }};
+        let lastRefreshTime = Date.now();
+
         // Check for stuck imports
         if (inProgressStatuses.includes(status)) {
             // If import hasn't updated in 5+ minutes, show warning
@@ -228,10 +248,127 @@
                 document.body.appendChild(warningDiv);
             }
 
-            // Auto-refresh
-            setTimeout(function() {
-                window.location.reload();
-            }, 3000);
+            // Fetch live updates via AJAX
+            async function fetchProgressUpdate() {
+                try {
+                    const response = await fetch(window.location.href, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    // Extract updated values
+                    const messagesCount = doc.querySelector('#messages-count');
+                    const mediaCount = doc.querySelector('#media-count');
+                    const lastUpdate = doc.querySelector('#last-update-time');
+                    const logContent = doc.querySelector('#log-content');
+                    const statusBadge = doc.querySelector('.px-4.py-2');
+
+                    // Calculate processing rates
+                    const currentTime = Date.now();
+                    const timeDiff = (currentTime - lastRefreshTime) / 1000; // seconds
+
+                    if (messagesCount) {
+                        const currentMessages = parseInt(messagesCount.textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+                        const messagesDiff = currentMessages - previousMessagesProcessed;
+                        const messagesPerSecond = messagesDiff / timeDiff;
+
+                        document.getElementById('messages-count').innerHTML = messagesCount.innerHTML;
+
+                        // Update rate display
+                        if (messagesDiff > 0) {
+                            const rateEl = document.getElementById('messages-rate');
+                            if (rateEl) {
+                                rateEl.textContent = `Processing ~${Math.round(messagesPerSecond * 60)} messages/min`;
+                            }
+                        }
+
+                        previousMessagesProcessed = currentMessages;
+                    }
+
+                    if (mediaCount) {
+                        const currentMedia = parseInt(mediaCount.textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+                        const mediaDiff = currentMedia - previousMediaProcessed;
+                        const mediaPerSecond = mediaDiff / timeDiff;
+
+                        document.getElementById('media-count').innerHTML = mediaCount.innerHTML;
+
+                        if (mediaDiff > 0) {
+                            const rateEl = document.getElementById('media-rate');
+                            if (rateEl) {
+                                rateEl.textContent = `Processing ~${Math.round(mediaPerSecond * 60)} files/min`;
+                            }
+                        }
+
+                        previousMediaProcessed = currentMedia;
+                    }
+
+                    if (lastUpdate) {
+                        document.getElementById('last-update-time').innerHTML = lastUpdate.innerHTML;
+                    }
+
+                    // Update progress bars
+                    const messagesBar = doc.querySelector('#messages-progress-bar');
+                    if (messagesBar) {
+                        document.getElementById('messages-progress-bar').style.width = messagesBar.style.width;
+                    }
+
+                    const mediaBar = doc.querySelector('#media-progress-bar');
+                    if (mediaBar) {
+                        const localMediaBar = document.getElementById('media-progress-bar');
+                        if (localMediaBar) {
+                            localMediaBar.style.width = mediaBar.style.width;
+                        }
+                    }
+
+                    // Update log (auto-scroll to bottom if user is already at bottom)
+                    if (logContent) {
+                        const logEl = document.getElementById('log-content');
+                        const isAtBottom = logEl.scrollHeight - logEl.scrollTop <= logEl.clientHeight + 100;
+                        logEl.textContent = logContent.textContent;
+                        if (isAtBottom) {
+                            logEl.scrollTop = logEl.scrollHeight;
+                        }
+                    }
+
+                    // Update media counts
+                    const imagesCount = doc.querySelector('.text-purple-600');
+                    const videosCount = doc.querySelector('.text-pink-600');
+                    const audioCount = doc.querySelector('.text-blue-600');
+                    if (imagesCount) document.querySelector('.text-purple-600').textContent = imagesCount.textContent;
+                    if (videosCount) document.querySelector('.text-pink-600').textContent = videosCount.textContent;
+                    if (audioCount) document.querySelector('.text-blue-600').textContent = audioCount.textContent;
+
+                    // Check if status changed to completed/failed
+                    if (statusBadge && !statusBadge.querySelector('.animate-spin')) {
+                        // Import finished, do full page reload to show final state
+                        window.location.reload();
+                    }
+
+                    lastRefreshTime = currentTime;
+
+                } catch (error) {
+                    console.error('Failed to fetch progress update:', error);
+                }
+
+                // Schedule next update
+                const currentStatus = document.querySelector('.px-4.py-2')?.textContent.trim().toLowerCase();
+                if (inProgressStatuses.some(s => currentStatus?.includes(s.replace('_', ' ')))) {
+                    setTimeout(fetchProgressUpdate, 3000);
+                }
+            }
+
+            // Start live updates
+            setTimeout(fetchProgressUpdate, 3000);
+
+            // Auto-scroll log to bottom on load
+            const logEl = document.getElementById('log-content');
+            if (logEl) {
+                logEl.scrollTop = logEl.scrollHeight;
+            }
         }
     </script>
 </x-app-layout>

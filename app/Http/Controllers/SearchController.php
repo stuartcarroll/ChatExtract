@@ -13,15 +13,15 @@ class SearchController extends Controller
      */
     public function index()
     {
-        // Get user's chats for filter dropdown
-        $chats = auth()->user()->ownedChats()->get();
+        // Get user's accessible chats for filter dropdown
+        $chats = auth()->user()->accessibleChats()->get();
 
         // Get user's tags for filter dropdown
         $tags = auth()->user()->tags()->get();
 
-        // Get all unique participants from user's chats
+        // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
-            $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+            $userChatIds = auth()->user()->accessibleChatIds()->toArray();
             $query->whereIn('chat_id', $userChatIds);
         })->orderBy('name')->get(['id', 'name']);
 
@@ -54,8 +54,8 @@ class SearchController extends Controller
             'only_stories' => 'nullable|boolean',
         ]);
 
-        // Get user's chat IDs for security
-        $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+        // Get user's accessible chat IDs for security
+        $userChatIds = auth()->user()->accessibleChatIds()->toArray();
 
         if (empty($userChatIds)) {
             $results = collect();
@@ -68,7 +68,7 @@ class SearchController extends Controller
                 // Use Laravel Scout for full-text search
                 $query = Message::search($request->input('query'))
                     ->query(function ($builder) use ($userChatIds) {
-                        // Ensure user can only search their own chats
+                        // Ensure user can only search chats they have access to
                         $builder->whereIn('chat_id', $userChatIds);
                     });
                 $useScout = true;
@@ -76,7 +76,7 @@ class SearchController extends Controller
 
             // Apply filters (different syntax for Scout vs Query Builder)
             if ($request->filled('chat_id')) {
-                // Verify user owns this chat
+                // Verify user has access to this chat
                 if (in_array($request->chat_id, $userChatIds)) {
                     $query->where('chat_id', $request->chat_id);
                 }
@@ -157,15 +157,15 @@ class SearchController extends Controller
             );
         }
 
-        // Get user's chats for filter dropdown
-        $chats = auth()->user()->ownedChats()->get();
+        // Get user's accessible chats for filter dropdown
+        $chats = auth()->user()->accessibleChats()->get();
 
         // Get user's tags for filter dropdown
         $tags = auth()->user()->tags()->get();
 
-        // Get all unique participants from user's chats
+        // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
-            $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+            $userChatIds = auth()->user()->accessibleChatIds()->toArray();
             $query->whereIn('chat_id', $userChatIds);
         })->orderBy('name')->get(['id', 'name']);
 
@@ -192,8 +192,8 @@ class SearchController extends Controller
             'has_media' => 'nullable|boolean',
         ]);
 
-        // Get user's chat IDs for security
-        $userChatIds = auth()->user()->ownedChats()->pluck('id')->toArray();
+        // Get user's accessible chat IDs for security
+        $userChatIds = auth()->user()->accessibleChatIds()->toArray();
 
         // Start with base query
         $query = Message::query()->whereIn('chat_id', $userChatIds);
@@ -261,8 +261,8 @@ class SearchController extends Controller
         // Get results
         $results = $query->with(['chat', 'participant', 'media', 'tags'])->paginate(50);
 
-        // Get user's chats for filter dropdown
-        $chats = auth()->user()->ownedChats()->get();
+        // Get user's accessible chats for filter dropdown
+        $chats = auth()->user()->accessibleChats()->get();
 
         // Get user's tags for filter dropdown
         $tags = auth()->user()->tags()->get();

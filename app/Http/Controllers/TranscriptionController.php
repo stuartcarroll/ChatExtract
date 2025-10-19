@@ -143,39 +143,46 @@ class TranscriptionController extends Controller
             abort(403, 'Only administrators can access the transcription dashboard.');
         }
 
-        // Get all user's chats with audio files
+        // Get all user's chats with audio files - optimized with direct SQL
         $chats = Chat::where('user_id', auth()->id())
             ->whereHas('messages.media', function ($query) {
                 $query->where('type', 'audio');
             })
-            ->withCount(['messages as audio_count' => function ($query) {
-                $query->whereHas('media', function ($q) {
-                    $q->where('type', 'audio');
-                });
-            }])
-            ->with(['messages' => function ($query) {
-                $query->whereHas('media', function ($q) {
-                    $q->where('type', 'audio');
-                })
-                ->with(['media' => function ($q) {
-                    $q->where('type', 'audio');
-                }]);
-            }])
-            ->orderByDesc('last_message_at')
             ->get()
             ->map(function ($chat) {
-                $audioFiles = $chat->messages->pluck('media')->flatten()->where('type', 'audio');
+                // Get audio stats using direct query
+                $audioStats = \DB::table('media')
+                    ->join('messages', 'media.message_id', '=', 'messages.id')
+                    ->where('messages.chat_id', $chat->id)
+                    ->where('media.type', 'audio')
+                    ->selectRaw('
+                        COUNT(*) as total_audio,
+                        SUM(CASE WHEN transcription IS NOT NULL THEN 1 ELSE 0 END) as transcribed,
+                        SUM(CASE WHEN transcription_requested = 1 AND transcription IS NULL THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN transcription_requested IS NULL OR transcription_requested = 0 THEN 1 ELSE 0 END) as not_started
+                    ')
+                    ->first();
+
+                // Get last message timestamp
+                $lastMessage = \DB::table('messages')
+                    ->join('media', 'messages.id', '=', 'media.message_id')
+                    ->where('messages.chat_id', $chat->id)
+                    ->where('media.type', 'audio')
+                    ->orderByDesc('messages.sent_at')
+                    ->first();
 
                 return [
                     'id' => $chat->id,
                     'name' => $chat->name,
-                    'last_message_at' => $chat->last_message_at,
-                    'total_audio' => $audioFiles->count(),
-                    'transcribed' => $audioFiles->whereNotNull('transcription')->count(),
-                    'pending' => $audioFiles->where('transcription_requested', true)->whereNull('transcription')->count(),
-                    'not_started' => $audioFiles->whereNull('transcription_requested')->count(),
+                    'last_message_at' => $lastMessage ? $lastMessage->sent_at : $chat->created_at,
+                    'total_audio' => $audioStats->total_audio ?? 0,
+                    'transcribed' => $audioStats->transcribed ?? 0,
+                    'pending' => $audioStats->pending ?? 0,
+                    'not_started' => $audioStats->not_started ?? 0,
                 ];
-            });
+            })
+            ->sortByDesc('last_message_at')
+            ->values();
 
         return view('transcription.dashboard', compact('chats'));
     }

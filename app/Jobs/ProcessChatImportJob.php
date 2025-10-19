@@ -192,6 +192,11 @@ class ProcessChatImportJob implements ShouldQueue
             ]);
             $progress->addLog("Import completed successfully!");
 
+            // Dispatch throttled indexing job for background processing
+            // Note: IndexMessagesJob is not yet implemented
+            // $progress->addLog("Scheduling background indexing (50 messages per 10 seconds)");
+            // IndexMessagesJob::dispatch($chat->id, 50, 0)->onQueue('indexing');
+
             // Cleanup temporary files
             if ($extractPath && file_exists($extractPath)) {
                 $this->deleteDirectory($extractPath);
@@ -320,12 +325,13 @@ class ProcessChatImportJob implements ShouldQueue
 
                     $type = $this->getMediaType($mimeType);
 
-                    // Copy file to permanent storage
+                    // Copy file to permanent storage using streaming to avoid memory issues
                     $destinationPath = $chatMediaDir . '/' . $filename;
-                    Storage::disk('media')->put(
-                        $destinationPath,
-                        file_get_contents($filePath)
-                    );
+                    $stream = fopen($filePath, 'r');
+                    Storage::disk('media')->put($destinationPath, $stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
 
                     $publicPath = 'media/' . $destinationPath;
 

@@ -12,8 +12,16 @@ class ChatController extends Controller
      */
     public function index()
     {
-        $chats = auth()->user()
-            ->ownedChats()
+        $user = auth()->user();
+
+        // Get owned chats
+        // Optimized query to get all accessible chats
+        $chats = Chat::where('user_id', $user->id)
+            ->orWhereHas('access', function($q) use ($user) {
+                // Only user access is currently supported (no group access)
+                $q->where('accessable_type', \App\Models\User::class)
+                  ->where('accessable_id', $user->id);
+            })
             ->withCount('messages')
             ->latest()
             ->paginate(20);
@@ -37,16 +45,30 @@ class ChatController extends Controller
         // Authorize the user
         $this->authorize('view', $chat);
 
+        // Check if a specific message is requested via URL fragment
+        $highlightMessageId = request()->get('message');
+        $page = request()->get('page', 1);
+
+        // If a message ID is provided and we're on page 1, calculate the correct page
+        if ($highlightMessageId && $page == 1) {
+            $messagePosition = $chat->messages()
+                ->where('id', '<=', $highlightMessageId)
+                ->count();
+
+            if ($messagePosition > 0) {
+                $page = ceil($messagePosition / 100);
+            }
+        }
+
         // Load messages with participants and media
         $messages = $chat->messages()
             ->with(['participant', 'media', 'tags'])
             ->orderBy('sent_at', 'asc')
-            ->paginate(100);
+            ->paginate(100, ['*'], 'page', $page);
 
         // Get chat statistics
         $statistics = [
             'total_messages' => $chat->messages()->count(),
-            'total_stories' => $chat->messages()->where('is_story', true)->count(),
             'total_participants' => $chat->participants()->count(),
             'date_range' => [
                 'start' => $chat->messages()->min('sent_at'),
@@ -68,7 +90,10 @@ class ChatController extends Controller
         $statistics['audio_files'] = $audioStats->total ?? 0;
         $statistics['transcribed_audio'] = $audioStats->transcribed ?? 0;
 
-        return view('chats.show', compact('chat', 'messages', 'statistics'));
+        // Get user's tags for tagging interface
+        $tags = auth()->user()->tags()->orderBy('name')->get();
+
+        return view('chats.show', compact('chat', 'messages', 'statistics', 'highlightMessageId', 'tags'));
     }
 
     /**
@@ -79,7 +104,16 @@ class ChatController extends Controller
         // Authorize the user
         $this->authorize('update', $chat);
 
-        return view('chats.edit', compact('chat'));
+        // Get all users except the owner
+        $users = \App\Models\User::where('id', '!=', $chat->user_id)->get();
+
+        // Get all groups created by this user
+        $groups = \App\Models\Group::where('created_by', auth()->id())->get();
+
+        // Get current access grants
+        $chatAccess = $chat->access()->with('accessable')->get();
+
+        return view('chats.edit', compact('chat', 'users', 'groups', 'chatAccess'));
     }
 
     /**
@@ -129,6 +163,59 @@ class ChatController extends Controller
     }
 
     /**
+     * Grant access to a user or group.
+     */
+    public function grantAccess(Request $request, Chat $chat)
+    {
+        $this->authorize('update', $chat);
+
+        $request->validate([
+            'accessable_type' => 'required|in:user',
+            'accessable_id' => 'required|integer',
+            'permission' => 'required|in:view,edit,admin',
+        ]);
+
+        // Only user access is currently supported
+        if ($request->accessable_type !== 'user') {
+            abort(400, 'Only user access currently supported');
+        }
+        $accessableType = \App\Models\User::class;
+
+        // Check if access already exists
+        $existing = $chat->access()
+            ->where('accessable_type', $accessableType)
+            ->where('accessable_id', $request->accessable_id)
+            ->first();
+
+        if ($existing) {
+            $existing->update(['permission' => $request->permission]);
+        } else {
+            $chat->access()->create([
+                'accessable_type' => $accessableType,
+                'accessable_id' => $request->accessable_id,
+                'permission' => $request->permission,
+                'granted_by' => auth()->id(),
+            ]);
+        }
+
+        return redirect()->route('chats.edit', $chat)
+            ->with('success', 'Access granted successfully.');
+    }
+
+    /**
+     * Revoke access from a user or group.
+     */
+    public function revokeAccess(Chat $chat, $accessId)
+    {
+        $this->authorize('update', $chat);
+
+        $chat->access()->where('id', $accessId)->delete();
+
+        return redirect()->route('chats.edit', $chat)
+            ->with('success', 'Access revoked successfully.');
+    }
+
+    /**
      * Display gallery view of all media in a chat.
      */
     public function gallery(Chat $chat, Request $request)
@@ -136,8 +223,9 @@ class ChatController extends Controller
         // Authorize the user
         $this->authorize('view', $chat);
 
-        // Get filter type (all, image, video, audio)
+        // Get filter type (all, image, video, audio) and sort
         $type = $request->get('type', 'all');
+        $sort = $request->get('sort', 'date_desc');
 
         // Query media with messages, participants, and tags
         $query = \App\Models\Media::query()
@@ -150,39 +238,45 @@ class ChatController extends Controller
             $query->where('media.type', $type);
         }
 
-        // Order by message date (newest first) and select only media columns
-        $media = $query
-            ->orderBy('messages.sent_at', 'desc')
-            ->select('media.*')
-            ->paginate(24);
+        // Apply sorting
+        $query->select('media.*');
 
-        // Get media counts by type
+        switch ($sort) {
+            case 'date_asc':
+                $query->orderBy('messages.sent_at', 'asc');
+                break;
+            case 'date_desc':
+            default:
+                $query->orderBy('messages.sent_at', 'desc');
+                break;
+        }
+
+        // Get media with pagination and preserve query parameters
+        $media = $query->paginate(24)->withQueryString();
+
+        // Get media counts by type in a single optimized query
+        $countsRaw = \App\Models\Media::query()
+            ->join('messages', 'media.message_id', '=', 'messages.id')
+            ->where('messages.chat_id', $chat->id)
+            ->selectRaw("
+                COUNT(*) as all_count,
+                SUM(CASE WHEN media.type = 'image' THEN 1 ELSE 0 END) as image,
+                SUM(CASE WHEN media.type = 'video' THEN 1 ELSE 0 END) as video,
+                SUM(CASE WHEN media.type = 'audio' THEN 1 ELSE 0 END) as audio
+            ")
+            ->first();
+
         $counts = [
-            'all' => \App\Models\Media::query()
-                ->join('messages', 'media.message_id', '=', 'messages.id')
-                ->where('messages.chat_id', $chat->id)
-                ->count(),
-            'image' => \App\Models\Media::query()
-                ->join('messages', 'media.message_id', '=', 'messages.id')
-                ->where('messages.chat_id', $chat->id)
-                ->where('media.type', 'image')
-                ->count(),
-            'video' => \App\Models\Media::query()
-                ->join('messages', 'media.message_id', '=', 'messages.id')
-                ->where('messages.chat_id', $chat->id)
-                ->where('media.type', 'video')
-                ->count(),
-            'audio' => \App\Models\Media::query()
-                ->join('messages', 'media.message_id', '=', 'messages.id')
-                ->where('messages.chat_id', $chat->id)
-                ->where('media.type', 'audio')
-                ->count(),
+            'all' => $countsRaw->all_count ?? 0,
+            'image' => $countsRaw->image ?? 0,
+            'video' => $countsRaw->video ?? 0,
+            'audio' => $countsRaw->audio ?? 0,
         ];
 
         // Get user's tags for tagging interface
         $tags = auth()->user()->tags()->orderBy('name')->get();
 
-        return view('chats.gallery', compact('chat', 'media', 'type', 'counts', 'tags'));
+        return view('chats.gallery', compact('chat', 'media', 'type', 'counts', 'tags', 'sort'));
     }
 
     /**

@@ -15,6 +15,7 @@ class GalleryController extends Controller
     {
         $type = $request->get('type', 'all');
         $participantId = $request->get('participant');
+        $sort = $request->get('sort', 'date_desc');
 
         // Get user's accessible chat IDs
         $chatIds = auth()->user()->accessibleChats()->pluck('id')->toArray();
@@ -41,26 +42,39 @@ class GalleryController extends Controller
                 });
             }
 
-            // Get media with pagination
-            $media = $query->join('messages', 'media.message_id', '=', 'messages.id')
-                ->orderBy('messages.sent_at', 'desc')
-                ->select('media.*')
-                ->paginate(24);
+            // Apply sorting
+            $query->join('messages', 'media.message_id', '=', 'messages.id')
+                ->select('media.*');
 
-            // Get counts
+            switch ($sort) {
+                case 'date_asc':
+                    $query->orderBy('messages.sent_at', 'asc');
+                    break;
+                case 'date_desc':
+                default:
+                    $query->orderBy('messages.sent_at', 'desc');
+                    break;
+            }
+
+            // Get media with pagination and preserve query parameters
+            $media = $query->paginate(24)->withQueryString();
+
+            // Get counts in a single optimized query
+            $countsRaw = Media::join('messages', 'media.message_id', '=', 'messages.id')
+                ->whereIn('messages.chat_id', $chatIds)
+                ->selectRaw("
+                    COUNT(*) as all_count,
+                    SUM(CASE WHEN media.type = 'image' THEN 1 ELSE 0 END) as image,
+                    SUM(CASE WHEN media.type = 'video' THEN 1 ELSE 0 END) as video,
+                    SUM(CASE WHEN media.type = 'audio' THEN 1 ELSE 0 END) as audio
+                ")
+                ->first();
+
             $counts = [
-                'all' => Media::whereHas('message', function ($q) use ($chatIds) {
-                    $q->whereIn('chat_id', $chatIds);
-                })->count(),
-                'image' => Media::where('type', 'image')->whereHas('message', function ($q) use ($chatIds) {
-                    $q->whereIn('chat_id', $chatIds);
-                })->count(),
-                'video' => Media::where('type', 'video')->whereHas('message', function ($q) use ($chatIds) {
-                    $q->whereIn('chat_id', $chatIds);
-                })->count(),
-                'audio' => Media::where('type', 'audio')->whereHas('message', function ($q) use ($chatIds) {
-                    $q->whereIn('chat_id', $chatIds);
-                })->count(),
+                'all' => $countsRaw->all_count ?? 0,
+                'image' => $countsRaw->image ?? 0,
+                'video' => $countsRaw->video ?? 0,
+                'audio' => $countsRaw->audio ?? 0,
             ];
 
             // Get all unique participants from accessible chats
@@ -74,6 +88,6 @@ class GalleryController extends Controller
         // Get user's tags for tagging interface
         $tags = auth()->user()->tags()->orderBy('name')->get();
 
-        return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId', 'tags'));
+        return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId', 'tags', 'sort'));
     }
 }

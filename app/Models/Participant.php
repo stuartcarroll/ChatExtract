@@ -23,6 +23,13 @@ class Participant extends Model
     ];
 
     /**
+     * The attributes that are not mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $guarded = ['transcription_consent_given_by'];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

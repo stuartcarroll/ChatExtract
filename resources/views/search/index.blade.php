@@ -201,7 +201,7 @@
                                                     <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">{{ $tag->name }}</span>
                                                 @endforeach
                                             </div>
-                                            <a href="{{ route('chats.show', $message->chat_id) }}#message-{{ $message->id }}" class="text-sm text-blue-600 hover:text-blue-800">
+                                            <a href="{{ route('chats.show', ['chat' => $message->chat_id, 'message' => $message->id]) }}" class="text-sm text-blue-600 hover:text-blue-800">
                                                 View in chat →
                                             </a>
                                         </div>

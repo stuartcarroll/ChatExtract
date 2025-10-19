@@ -26,6 +26,13 @@ class User extends Authenticatable
     ];
 
     /**
+     * The attributes that are not mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $guarded = ['is_admin', 'email_verified_at'];
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
@@ -99,17 +106,41 @@ class User extends Authenticatable
      */
     public function accessibleChats()
     {
+        $allChatIds = $this->accessibleChatIds();
+        return Chat::whereIn('id', $allChatIds);
+    }
+
+    /**
+     * Get IDs of all chats the user can access.
+     */
+    public function accessibleChatIds()
+    {
         // Get owned chat IDs
         $ownedIds = $this->ownedChats()->pluck('id');
 
-        // Get shared chat IDs
-        $sharedIds = $this->chats()->pluck('id');
+        // Get chats with direct user access via chat_access table
+        $directAccessIds = \App\Models\ChatAccess::where('accessable_type', self::class)
+            ->where('accessable_id', $this->id)
+            ->pluck('chat_id');
+
+        // Group access not currently supported
+        // $userGroupIds = \App\Models\GroupUser::where('user_id', $this->id)->pluck('group_id');
+        $groupAccessIds = collect();
+        // if ($userGroupIds->isNotEmpty()) {
+        //     $groupAccessIds = \App\Models\ChatAccess::where('accessable_type', \App\Models\Group::class)
+        //         ->whereIn('accessable_id', $userGroupIds)
+        //         ->pluck('chat_id');
+        // }
+
+        // Legacy: Get shared chat IDs from old chat_user pivot table
+        $legacySharedIds = $this->chats()->pluck('id');
 
         // Merge and get unique IDs
-        $allChatIds = $ownedIds->merge($sharedIds)->unique();
-
-        // Return query builder for all accessible chats
-        return Chat::whereIn('id', $allChatIds);
+        return $ownedIds
+            ->merge($directAccessIds)
+            ->merge($groupAccessIds)
+            ->merge($legacySharedIds)
+            ->unique();
     }
 
     /**

@@ -38,14 +38,10 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold mb-4">Chat Statistics</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <p class="text-gray-600 text-sm">Total Messages</p>
                             <p class="text-2xl font-bold">{{ number_format($statistics['total_messages']) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-600 text-sm">Stories Detected</p>
-                            <p class="text-2xl font-bold">{{ number_format($statistics['total_stories']) }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm">Participants</p>
@@ -110,13 +106,6 @@
 
                         <div class="flex items-end">
                             <label class="flex items-center">
-                                <input type="checkbox" name="only_stories" value="1" {{ request('only_stories') ? 'checked' : '' }} class="rounded border-gray-300 text-blue-600 shadow-sm">
-                                <span class="ml-2 text-sm text-gray-700">Stories Only</span>
-                            </label>
-                        </div>
-
-                        <div class="flex items-end">
-                            <label class="flex items-center">
                                 <input type="checkbox" name="has_media" value="1" {{ request('has_media') ? 'checked' : '' }} class="rounded border-gray-300 text-blue-600 shadow-sm">
                                 <span class="ml-2 text-sm text-gray-700">Has Media</span>
                             </label>
@@ -141,17 +130,12 @@
                     @else
                         <div class="space-y-4">
                             @foreach ($messages as $message)
-                                <div class="border-l-4 {{ $message->is_story ? 'border-purple-500 bg-purple-50' : ($message->is_system_message ? 'border-gray-400 bg-gray-50' : 'border-blue-500') }} pl-4 py-3">
+                                <div id="message-{{ $message->id }}" class="border-l-4 {{ $message->is_system_message ? 'border-gray-400 bg-gray-50' : 'border-blue-500' }} pl-4 py-3 scroll-mt-4">
                                     <div class="flex justify-between items-start mb-1">
                                         <div>
                                             <span class="font-semibold text-sm {{ $message->is_system_message ? 'text-gray-600' : 'text-gray-800' }}">
                                                 {{ $message->participant ? $message->participant->name : 'Unknown' }}
                                             </span>
-                                            @if ($message->is_story)
-                                                <span class="ml-2 bg-purple-500 text-white text-xs px-2 py-1 rounded">
-                                                    Story ({{ number_format($message->story_confidence * 100) }}%)
-                                                </span>
-                                            @endif
                                         </div>
                                         <span class="text-xs text-gray-500">
                                             {{ $message->sent_at->format('M d, Y H:i') }}
@@ -233,14 +217,48 @@
                                         </div>
                                     @endif
 
-                                    @if ($message->tags->isNotEmpty())
-                                        <div class="mt-2 flex flex-wrap gap-2">
-                                            @foreach ($message->tags as $tag)
-                                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                    <!-- Tagging Section -->
+                                    @if($tags->isNotEmpty())
+                                    <div class="mt-3 bg-gray-50 rounded-lg p-2 border border-gray-200" x-data="{ showTags: false }">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium text-gray-600">Tags:</span>
+                                            <button type="button" @click="showTags = !showTags" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                <span x-show="!showTags">+ Add Tag</span>
+                                                <span x-show="showTags">Hide</span>
+                                            </button>
+                                        </div>
+
+                                        <!-- Current tags -->
+                                        <div class="flex flex-wrap gap-1 mb-1">
+                                            @foreach($message->tags as $tag)
+                                            <form action="{{ route('messages.tag', $message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
+                                                @csrf
+                                                <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition">
                                                     {{ $tag->name }}
-                                                </span>
+                                                    <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
                                             @endforeach
                                         </div>
+
+                                        <!-- Available tags (collapsible) -->
+                                        <div x-show="showTags" x-collapse class="flex flex-wrap gap-1 pt-1 border-t border-gray-200 mt-1">
+                                            @foreach($tags as $tag)
+                                                @if(!$message->tags->contains($tag->id))
+                                                <form action="{{ route('messages.tag', $message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
+                                                    @csrf
+                                                    <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                    <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
+                                                        + {{ $tag->name }}
+                                                    </button>
+                                                </form>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
                                     @endif
                                 </div>
                             @endforeach
@@ -254,4 +272,29 @@
             </div>
         </div>
     </div>
+
+    @if(isset($highlightMessageId) && $highlightMessageId)
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageId = {{ $highlightMessageId }};
+            const messageElement = document.getElementById('message-' + messageId);
+
+            if (messageElement) {
+                // Scroll to the message with smooth behavior
+                setTimeout(() => {
+                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    // Add highlight animation
+                    messageElement.style.transition = 'background-color 0.5s ease';
+                    messageElement.style.backgroundColor = '#fef3c7'; // yellow-100
+
+                    // Remove highlight after 3 seconds
+                    setTimeout(() => {
+                        messageElement.style.backgroundColor = '';
+                    }, 3000);
+                }, 100);
+            }
+        });
+    </script>
+    @endif
 </x-app-layout>

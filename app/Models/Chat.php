@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Chat extends Model
 {
@@ -63,5 +64,13 @@ class Chat extends Model
     public function participants(): HasMany
     {
         return $this->hasMany(Participant::class);
+    }
+
+    /**
+     * Get all access grants for this chat.
+     */
+    public function access(): HasMany
+    {
+        return $this->hasMany(ChatAccess::class);
     }
 }

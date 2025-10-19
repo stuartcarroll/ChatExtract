@@ -61,7 +61,7 @@ class ChunkedUploadController extends Controller
     {
         $request->validate([
             'upload_id' => 'required|string',
-            'chunk_index' => 'required|integer|min:0',
+            'chunk_index' => 'required|integer|min:0|max:10000',
             'chunk' => 'required|file',
         ]);
 
@@ -213,10 +213,15 @@ class ChunkedUploadController extends Controller
                 throw new \Exception('Could not create final file');
             }
 
-            // Append each chunk
+            // Append each chunk using streaming to avoid memory issues
             foreach ($chunks as $chunkPath) {
-                $chunkData = file_get_contents($chunkPath);
-                fwrite($finalFile, $chunkData);
+                $chunkHandle = fopen($chunkPath, 'rb');
+                if ($chunkHandle) {
+                    while (!feof($chunkHandle)) {
+                        fwrite($finalFile, fread($chunkHandle, 8192)); // 8KB chunks
+                    }
+                    fclose($chunkHandle);
+                }
                 unlink($chunkPath); // Delete chunk after appending
             }
 

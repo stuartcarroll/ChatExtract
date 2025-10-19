@@ -50,6 +50,7 @@ class TwoFactorChallengeController extends Controller
             session()->forget('two_factor:user');
             auth()->login($user, session('two_factor:remember', false));
             session()->forget('two_factor:remember');
+            $request->session()->regenerate();  // Prevent session fixation
 
             return redirect()->intended(route('dashboard'))
                 ->with('warning', 'You used a recovery code. Consider regenerating your recovery codes.');
@@ -66,6 +67,7 @@ class TwoFactorChallengeController extends Controller
                 session()->forget('two_factor:user');
                 auth()->login($user, session('two_factor:remember', false));
                 session()->forget('two_factor:remember');
+                $request->session()->regenerate();  // Prevent session fixation
 
                 return redirect()->intended(route('dashboard'));
             }

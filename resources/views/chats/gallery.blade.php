@@ -20,23 +20,34 @@
             <!-- Filter Tabs -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
-                    <div class="flex flex-wrap gap-2">
-                        <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'all']) }}"
-                           class="px-4 py-2 rounded {{ $type === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
-                            All Media ({{ $counts['all'] }})
-                        </a>
-                        <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'image']) }}"
-                           class="px-4 py-2 rounded {{ $type === 'image' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
-                            📷 Photos ({{ $counts['image'] }})
-                        </a>
-                        <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'video']) }}"
-                           class="px-4 py-2 rounded {{ $type === 'video' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
-                            🎥 Videos ({{ $counts['video'] }})
-                        </a>
-                        <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'audio']) }}"
-                           class="px-4 py-2 rounded {{ $type === 'audio' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
-                            🎵 Audio ({{ $counts['audio'] }})
-                        </a>
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'all', 'sort' => request('sort', 'date_desc')]) }}"
+                               class="px-4 py-2 rounded {{ $type === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                                All Media ({{ $counts['all'] }})
+                            </a>
+                            <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'image', 'sort' => request('sort', 'date_desc')]) }}"
+                               class="px-4 py-2 rounded {{ $type === 'image' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                                📷 Photos ({{ $counts['image'] }})
+                            </a>
+                            <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'video', 'sort' => request('sort', 'date_desc')]) }}"
+                               class="px-4 py-2 rounded {{ $type === 'video' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                                🎥 Videos ({{ $counts['video'] }})
+                            </a>
+                            <a href="{{ route('chats.gallery', ['chat' => $chat, 'type' => 'audio', 'sort' => request('sort', 'date_desc')]) }}"
+                               class="px-4 py-2 rounded {{ $type === 'audio' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                                🎵 Audio ({{ $counts['audio'] }})
+                            </a>
+                        </div>
+
+                        <!-- Sort Filter -->
+                        <div class="ml-auto min-w-48">
+                            <select onchange="window.location.href='{{ route('chats.gallery', ['chat' => $chat, 'type' => $type]) }}&sort=' + this.value"
+                                    class="rounded border-gray-300 w-full">
+                                <option value="date_desc" {{ $sort === 'date_desc' ? 'selected' : '' }}>Newest First</option>
+                                <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest First</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -127,7 +138,7 @@
                                     <!-- Current tags -->
                                     <div class="flex flex-wrap gap-1 mb-1">
                                         @foreach($item->message->tags as $tag)
-                                        <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                        <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation();">
                                             @csrf
                                             <input type="hidden" name="tag_id" value="{{ $tag->id }}">
                                             <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition">
@@ -144,7 +155,7 @@
                                     <div x-show="showTags" x-collapse class="flex flex-wrap gap-1 pt-1">
                                         @foreach($tags as $tag)
                                             @if(!$item->message->tags->contains($tag->id))
-                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation();">
                                                 @csrf
                                                 <input type="hidden" name="tag_id" value="{{ $tag->id }}">
                                                 <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
@@ -163,7 +174,7 @@
 
                 <!-- Pagination -->
                 <div class="mt-6">
-                    {{ $media->appends(['type' => $type])->links() }}
+                    {{ $media->links() }}
                 </div>
             @endif
         </div>

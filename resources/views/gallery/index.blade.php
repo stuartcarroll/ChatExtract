@@ -10,27 +10,27 @@
                 <div class="flex flex-wrap gap-4 items-center">
                     <!-- Type Filter -->
                     <div class="flex gap-2">
-                        <a href="{{ route('gallery.index', ['type' => 'all', 'participant' => request('participant')]) }}" 
+                        <a href="{{ route('gallery.index', ['type' => 'all', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
                            class="px-4 py-2 rounded {{ $type === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
                             All ({{ $counts['all'] }})
                         </a>
-                        <a href="{{ route('gallery.index', ['type' => 'image', 'participant' => request('participant')]) }}" 
+                        <a href="{{ route('gallery.index', ['type' => 'image', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
                            class="px-4 py-2 rounded {{ $type === 'image' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
                             Photos ({{ $counts['image'] }})
                         </a>
-                        <a href="{{ route('gallery.index', ['type' => 'video', 'participant' => request('participant')]) }}" 
+                        <a href="{{ route('gallery.index', ['type' => 'video', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
                            class="px-4 py-2 rounded {{ $type === 'video' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
                             Videos ({{ $counts['video'] }})
                         </a>
-                        <a href="{{ route('gallery.index', ['type' => 'audio', 'participant' => request('participant')]) }}" 
+                        <a href="{{ route('gallery.index', ['type' => 'audio', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
                            class="px-4 py-2 rounded {{ $type === 'audio' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
                             Audio ({{ $counts['audio'] }})
                         </a>
                     </div>
 
                     <!-- Participant Filter -->
-                    <div class="flex-1">
-                        <select onchange="window.location.href='{{ route('gallery.index', ['type' => $type]) }}&participant=' + this.value" 
+                    <div class="flex-1 min-w-48">
+                        <select onchange="window.location.href='{{ route('gallery.index', ['type' => $type, 'sort' => request('sort', 'date_desc')]) }}&participant=' + this.value"
                                 class="rounded border-gray-300 w-full">
                             <option value="">All Participants</option>
                             @foreach ($participants as $participant)
@@ -38,6 +38,15 @@
                                     {{ $participant->name }}
                                 </option>
                             @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Sort Filter -->
+                    <div class="min-w-48">
+                        <select onchange="window.location.href='{{ route('gallery.index', ['type' => $type, 'participant' => request('participant')]) }}&sort=' + this.value"
+                                class="rounded border-gray-300 w-full">
+                            <option value="date_desc" {{ $sort === 'date_desc' ? 'selected' : '' }}>Newest First</option>
+                            <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest First</option>
                         </select>
                     </div>
                 </div>
