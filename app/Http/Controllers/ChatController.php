@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Chat;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 
 class ChatController extends Controller

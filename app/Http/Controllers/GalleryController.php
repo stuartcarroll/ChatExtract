@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Media;
 use App\Models\Participant;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 
 class GalleryController extends Controller
