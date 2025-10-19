@@ -53,22 +53,22 @@
             </div>
 
             <!-- Bulk Tagging Toolbar (Sticky) -->
-            <div id="bulk-toolbar" style="display: none;" class="bg-blue-600 text-white shadow-lg sm:rounded-lg mb-6 p-4 sticky top-24 z-30">
+            <div id="bulk-toolbar" style="display: none; background-color: #2563eb; color: white; position: sticky; top: 6rem; z-index: 30;" class="shadow-lg rounded-lg mb-6 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-4">
-                        <span class="font-semibold"><span id="selection-count">0</span> selected</span>
-                        <button onclick="window.gallerySelection.selectAll()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm">
+                        <span class="font-semibold text-lg" style="color: white;"><span id="selection-count">0</span> selected</span>
+                        <button onclick="window.gallerySelection.selectAll()" style="background-color: #1d4ed8; color: white;" class="px-4 py-2 hover:bg-blue-800 rounded text-sm font-medium">
                             Select All
                         </button>
-                        <button onclick="window.gallerySelection.clearAll()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm">
+                        <button onclick="window.gallerySelection.clearAll()" style="background-color: #1d4ed8; color: white;" class="px-4 py-2 hover:bg-blue-800 rounded text-sm font-medium">
                             Clear All
                         </button>
                     </div>
 
-                    <div class="flex items-center gap-2" x-data="{ showTags: false }">
-                        <button @click="showTags = !showTags" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-semibold">
-                            <span x-show="!showTags">Tag Selected</span>
-                            <span x-show="showTags">Hide Tags</span>
+                    <div class="flex items-center gap-2 relative" x-data="{ showTags: false }">
+                        <button @click="showTags = !showTags" style="background-color: #16a34a; color: white;" class="px-4 py-2 hover:bg-green-700 rounded font-semibold">
+                            <span x-show="!showTags">📌 Tag Selected</span>
+                            <span x-show="showTags">✕ Hide Tags</span>
                         </button>
 
                         <!-- Tag selection dropdown -->
