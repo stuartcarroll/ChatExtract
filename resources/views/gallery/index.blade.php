@@ -30,8 +30,8 @@
                     </select>
                 </div>
 
-                <!-- Selection Bar (shows when items selected) -->
-                <div id="selection-bar" style="display: none; background-color: #2563eb; color: white; padding: 12px; border-radius: 8px;" class="items-center justify-between shadow-lg">
+                <!-- Selection Bar (shows when items selected) - Sticky -->
+                <div id="selection-bar" style="display: none; position: sticky; top: 0; z-index: 50; background-color: #2563eb; color: white; padding: 12px; border-radius: 8px;" class="items-center justify-between shadow-lg">
                     <span class="text-sm font-semibold">
                         <span id="selection-count">0</span> selected
                     </span>
@@ -48,8 +48,8 @@
                     </div>
                 </div>
 
-                <!-- Quick Tag Input (inline) -->
-                <div id="quick-tag" style="display: none; background-color: #dbeafe; padding: 12px; border-radius: 8px; margin-top: 8px;" class="flex gap-2">
+                <!-- Quick Tag Input (inline) - Sticky -->
+                <div id="quick-tag" style="display: none; position: sticky; top: 60px; z-index: 50; background-color: #dbeafe; padding: 12px; border-radius: 8px; margin-top: 8px;" class="flex gap-2">
                     <input type="text" id="quick-tag-input" placeholder="New tag name..."
                            style="flex: 1; padding: 8px 12px; border: 1px solid #93c5fd; border-radius: 6px;"
                            onkeypress="if(event.key==='Enter') createQuickTag()">
@@ -190,11 +190,14 @@
                 if (!res.ok) {
                     const errorText = await res.text();
                     console.error('Error response:', errorText);
-                    alert('Error creating tag: ' + (res.status === 422 ? 'Tag already exists' : res.statusText));
-                    // Reset button
-                    btn.disabled = false;
-                    btn.style.backgroundColor = '#16a34a';
-                    btn.textContent = 'Create & Apply';
+                    // Show error in button
+                    btn.style.backgroundColor = '#dc2626';
+                    btn.textContent = res.status === 422 ? 'Tag exists' : '✗ Error';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.style.backgroundColor = '#16a34a';
+                        btn.textContent = 'Create & Apply';
+                    }, 2000);
                     return;
                 }
 
@@ -211,11 +214,14 @@
 
             } catch (e) {
                 console.error('Exception:', e);
-                alert('Error creating tag: ' + e.message);
-                // Reset button
-                btn.disabled = false;
-                btn.style.backgroundColor = '#16a34a';
-                btn.textContent = 'Create & Apply';
+                // Show error in button briefly
+                btn.style.backgroundColor = '#dc2626';
+                btn.textContent = '✗ Error';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.backgroundColor = '#16a34a';
+                    btn.textContent = 'Create & Apply';
+                }, 2000);
             }
         }
 
@@ -239,7 +245,7 @@
 
             for (const id of selected) {
                 try {
-                    await fetch(`/messages/${id}/tag`, {
+                    const response = await fetch(`/messages/${id}/tag`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -247,14 +253,56 @@
                         },
                         body: JSON.stringify({ tag_id: tagId })
                     });
-                    success++;
+
+                    if (response.ok) {
+                        success++;
+                        // Add tag chip to the item in DOM
+                        updateTagChipsInDOM(id, tagId, tagName);
+                    }
                 } catch (e) {
                     console.error(e);
                 }
             }
 
-            alert(`Tagged ${success} items`);
-            window.location.reload();
+            // Clear selection and hide UI
+            clearSelection();
+            hideQuickTag();
+            closeTagSheet();
+        }
+
+        function updateTagChipsInDOM(messageId, tagId, tagName) {
+            // Find all items with this message and update their tag chips
+            const items = document.querySelectorAll(`input[onchange*="toggleSelection(${messageId}"]`);
+            items.forEach(checkbox => {
+                const itemDiv = checkbox.closest('.relative');
+                const tagsContainer = itemDiv.querySelector('.p-2.border-t');
+
+                // Check if tag already exists
+                const existingTags = tagsContainer.querySelectorAll('.bg-blue-100');
+                const tagExists = Array.from(existingTags).some(t => t.textContent === tagName);
+
+                if (!tagExists) {
+                    // Remove "No tags" message if present
+                    const noTags = tagsContainer.querySelector('.text-gray-400');
+                    if (noTags) {
+                        noTags.remove();
+                        // Create flex container if needed
+                        const flexDiv = document.createElement('div');
+                        flexDiv.className = 'flex flex-wrap gap-1';
+                        tagsContainer.appendChild(flexDiv);
+                    }
+
+                    // Add new tag chip
+                    const tagChip = document.createElement('span');
+                    tagChip.className = 'text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full';
+                    tagChip.textContent = tagName;
+
+                    const flexContainer = tagsContainer.querySelector('.flex');
+                    if (flexContainer) {
+                        flexContainer.appendChild(tagChip);
+                    }
+                }
+            });
         }
 
         async function createTag() {
