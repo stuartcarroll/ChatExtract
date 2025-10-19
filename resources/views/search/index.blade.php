@@ -21,9 +21,8 @@
                                     name="query"
                                     id="query"
                                     value="{{ request('query') }}"
-                                    required
                                     class="w-full pl-12 pr-4 py-4 text-lg rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
-                                    placeholder="Search for messages..."
+                                    placeholder="Search for messages (optional - use filters below)..."
                                     autofocus
                                 >
                                 <div class="absolute left-4 top-4">
