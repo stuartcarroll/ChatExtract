@@ -31,16 +31,16 @@
                 </div>
 
                 <!-- Selection Bar (shows when items selected) -->
-                <div id="selection-bar" class="hidden items-center justify-between p-2 bg-blue-50 rounded-lg">
-                    <span class="text-sm font-medium text-blue-900">
+                <div id="selection-bar" style="display: none;" class="items-center justify-between p-3 bg-blue-600 text-white rounded-lg shadow-lg">
+                    <span class="text-sm font-semibold">
                         <span id="selection-count">0</span> selected
                     </span>
                     <div class="flex gap-2">
-                        <button onclick="clearSelection()" class="px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 rounded">
+                        <button onclick="clearSelection()" class="px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg font-medium">
                             Clear
                         </button>
-                        <button onclick="openTagSheet()" class="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                            Tag
+                        <button onclick="openTagSheet()" class="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded-lg font-medium">
+                            🏷️ Tag Items
                         </button>
                     </div>
                 </div>
@@ -127,13 +127,7 @@
             const count = document.getElementById('selection-count');
             count.textContent = selected.size;
 
-            if (selected.size > 0) {
-                bar.classList.remove('hidden');
-                bar.classList.add('flex');
-            } else {
-                bar.classList.add('hidden');
-                bar.classList.remove('flex');
-            }
+            bar.style.display = selected.size > 0 ? 'flex' : 'none';
         }
 
         function clearSelection() {
