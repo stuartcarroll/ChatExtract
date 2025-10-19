@@ -53,8 +53,8 @@
             </div>
 
             <!-- Bulk Tagging Toolbar (Sticky) -->
-            <div id="bulk-toolbar" class="hidden bg-blue-600 text-white shadow-lg sm:rounded-lg mb-6 p-4 sticky top-24 z-20">
-                <div class="flex items-center justify-between gap-4">
+            <div id="bulk-toolbar" style="display: none;" class="bg-blue-600 text-white shadow-lg sm:rounded-lg mb-6 p-4 sticky top-24 z-30">
+                <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-4">
                         <span class="font-semibold"><span id="selection-count">0</span> selected</span>
                         <button onclick="window.gallerySelection.selectAll()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm">
@@ -144,8 +144,15 @@
 
             updateUI() {
                 const count = this.selected.size;
-                document.getElementById('selection-count').textContent = count;
-                document.getElementById('bulk-toolbar').classList.toggle('hidden', count === 0);
+                const toolbar = document.getElementById('bulk-toolbar');
+                const countEl = document.getElementById('selection-count');
+
+                if (countEl) countEl.textContent = count;
+                if (toolbar) {
+                    toolbar.style.display = count > 0 ? 'block' : 'none';
+                }
+
+                console.log('Selection updated:', count, 'items selected');
             },
 
             async applyTag(tagId, tagName) {
