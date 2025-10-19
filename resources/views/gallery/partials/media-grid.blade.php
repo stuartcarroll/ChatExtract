@@ -1,9 +1,9 @@
 @foreach ($media as $item)
     <div class="relative group media-item" data-message-id="{{ $item->message->id }}">
         <!-- Selection Checkbox -->
-        <div class="absolute top-2 left-2 z-10" onclick="event.stopPropagation()">
+        <div class="absolute top-2 left-2 z-10 bg-blue-600 rounded px-2 py-1 shadow-lg" onclick="event.stopPropagation()">
             <input type="checkbox"
-                   class="media-checkbox w-6 h-6 rounded border-2 border-white shadow-lg cursor-pointer bg-white bg-opacity-90"
+                   class="media-checkbox w-5 h-5 rounded cursor-pointer accent-green-500"
                    data-message-id="{{ $item->message->id }}"
                    onchange="if(window.gallerySelection) { window.gallerySelection.toggle({{ $item->message->id }}); } else { console.error('gallerySelection not initialized'); }">
         </div>
