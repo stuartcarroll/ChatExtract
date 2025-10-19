@@ -36,6 +36,16 @@ class TagController extends Controller
             'name' => $request->name,
         ]);
 
+        // If AJAX request, return JSON with tag data
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'id' => $tag->id,
+                'name' => $tag->name,
+                'tag' => $tag
+            ], 201);
+        }
+
         // If called from inline form, redirect back to where they were
         if ($request->has('redirect_back')) {
             return back()->with('success', 'Tag "' . $tag->name . '" created successfully.');

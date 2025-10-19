@@ -65,7 +65,7 @@
                         </button>
                     </div>
 
-                    <div class="flex items-center gap-2 relative" x-data="{ showTags: false }">
+                    <div class="flex items-center gap-2 relative" x-data="{ showTags: false, showNewTag: false, newTagName: '' }">
                         <button @click="showTags = !showTags" style="background-color: #16a34a; color: white;" class="px-4 py-2 hover:bg-green-700 rounded font-semibold">
                             <span x-show="!showTags">📌 Tag Selected</span>
                             <span x-show="showTags">✕ Hide Tags</span>
@@ -74,13 +74,29 @@
                         <!-- Tag selection dropdown -->
                         <div x-show="showTags" x-collapse class="absolute right-0 top-full mt-2 bg-white text-gray-800 rounded-lg shadow-xl p-4 w-96 max-h-96 overflow-y-auto">
                             <p class="text-sm font-semibold mb-2">Select tags to apply:</p>
-                            <div class="flex flex-wrap gap-2">
+                            <div class="flex flex-wrap gap-2 mb-3">
                                 @foreach($tags as $tag)
                                 <button onclick="window.gallerySelection.applyTag({{ $tag->id }}, '{{ addslashes($tag->name) }}')"
                                         class="px-3 py-1 bg-gray-100 hover:bg-blue-100 rounded text-sm transition">
                                     + {{ $tag->name }}
                                 </button>
                                 @endforeach
+                            </div>
+
+                            <!-- Create new tag inline -->
+                            <div class="border-t border-gray-300 pt-3">
+                                <button type="button" @click="showNewTag = !showNewTag" class="text-sm text-green-600 hover:text-green-800 font-medium mb-2">
+                                    <span x-show="!showNewTag">+ Create New Tag</span>
+                                    <span x-show="showNewTag">✕ Cancel</span>
+                                </button>
+                                <div x-show="showNewTag" x-collapse>
+                                    <div class="flex gap-2">
+                                        <input type="text" x-model="newTagName" placeholder="New tag name" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500" maxlength="50">
+                                        <button @click="window.gallerySelection.createAndApplyTag(newTagName); newTagName = ''; showNewTag = false;" :disabled="!newTagName.trim()" class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                            Create & Apply
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -153,6 +169,53 @@
                 }
 
                 console.log('Selection updated:', count, 'items selected');
+            },
+
+            async createAndApplyTag(tagName) {
+                if (this.selected.size === 0) {
+                    alert('Please select items first');
+                    return;
+                }
+
+                if (!tagName || !tagName.trim()) {
+                    alert('Please enter a tag name');
+                    return;
+                }
+
+                const token = document.querySelector('meta[name="csrf-token"]').content;
+
+                try {
+                    // Create the tag first
+                    const createResponse = await fetch('/tags', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ name: tagName.trim() })
+                    });
+
+                    if (!createResponse.ok) {
+                        const error = await createResponse.json();
+                        alert(`Failed to create tag: ${error.message || 'Unknown error'}`);
+                        return;
+                    }
+
+                    const tagData = await createResponse.json();
+                    const newTagId = tagData.id || tagData.tag?.id;
+
+                    if (!newTagId) {
+                        alert('Tag created but could not get ID. Please refresh and try again.');
+                        return;
+                    }
+
+                    // Now apply it to selected items
+                    await this.applyTag(newTagId, tagName.trim());
+                } catch (error) {
+                    console.error('Error creating tag:', error);
+                    alert(`Error creating tag: ${error.message}`);
+                }
             },
 
             async applyTag(tagId, tagName) {
