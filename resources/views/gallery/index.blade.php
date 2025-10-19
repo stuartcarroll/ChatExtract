@@ -1,321 +1,246 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Global Gallery</h2>
-    </x-slot>
+    <div class="min-h-screen bg-gray-100">
+        <!-- Simple Top Bar -->
+        <div class="bg-white border-b sticky top-0 z-30 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <!-- Filters Row -->
+                <div class="flex gap-2 mb-3 overflow-x-auto">
+                    <select onchange="window.location.href='{{ route('gallery.index') }}?type=' + this.value + '&participant={{ request('participant') }}&sort={{ request('sort', 'date_desc') }}'"
+                            class="px-3 py-2 text-sm border rounded-lg bg-white">
+                        <option value="all" {{ $type === 'all' ? 'selected' : '' }}>All ({{ $counts['all'] }})</option>
+                        <option value="image" {{ $type === 'image' ? 'selected' : '' }}>Photos ({{ $counts['image'] }})</option>
+                        <option value="video" {{ $type === 'video' ? 'selected' : '' }}>Videos ({{ $counts['video'] }})</option>
+                        <option value="audio" {{ $type === 'audio' ? 'selected' : '' }}>Audio ({{ $counts['audio'] }})</option>
+                    </select>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Filters -->
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 p-4 sticky top-0 z-20">
-                <div class="flex flex-wrap gap-4 items-center">
-                    <!-- Type Filter -->
+                    <select onchange="window.location.href='{{ route('gallery.index') }}?type={{ $type }}&participant=' + this.value + '&sort={{ request('sort', 'date_desc') }}'"
+                            class="px-3 py-2 text-sm border rounded-lg bg-white flex-1 min-w-0">
+                        <option value="">All People</option>
+                        @foreach ($participants as $participant)
+                            <option value="{{ $participant->id }}" {{ $participantId == $participant->id ? 'selected' : '' }}>
+                                {{ $participant->name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <select onchange="window.location.href='{{ route('gallery.index') }}?type={{ $type }}&participant={{ request('participant') }}&sort=' + this.value"
+                            class="px-3 py-2 text-sm border rounded-lg bg-white">
+                        <option value="date_desc" {{ $sort === 'date_desc' ? 'selected' : '' }}>Newest</option>
+                        <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest</option>
+                    </select>
+                </div>
+
+                <!-- Selection Bar (shows when items selected) -->
+                <div id="selection-bar" class="hidden items-center justify-between p-2 bg-blue-50 rounded-lg">
+                    <span class="text-sm font-medium text-blue-900">
+                        <span id="selection-count">0</span> selected
+                    </span>
                     <div class="flex gap-2">
-                        <a href="{{ route('gallery.index', ['type' => 'all', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
-                           class="px-4 py-2 rounded {{ $type === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
-                            All ({{ $counts['all'] }})
-                        </a>
-                        <a href="{{ route('gallery.index', ['type' => 'image', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
-                           class="px-4 py-2 rounded {{ $type === 'image' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
-                            Photos ({{ $counts['image'] }})
-                        </a>
-                        <a href="{{ route('gallery.index', ['type' => 'video', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
-                           class="px-4 py-2 rounded {{ $type === 'video' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
-                            Videos ({{ $counts['video'] }})
-                        </a>
-                        <a href="{{ route('gallery.index', ['type' => 'audio', 'participant' => request('participant'), 'sort' => request('sort', 'date_desc')]) }}"
-                           class="px-4 py-2 rounded {{ $type === 'audio' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700' }}">
-                            Audio ({{ $counts['audio'] }})
-                        </a>
-                    </div>
-
-                    <!-- Participant Filter -->
-                    <div class="flex-1 min-w-48">
-                        <select onchange="window.location.href='{{ route('gallery.index', ['type' => $type, 'sort' => request('sort', 'date_desc')]) }}&participant=' + this.value"
-                                class="rounded border-gray-300 w-full">
-                            <option value="">All Participants</option>
-                            @foreach ($participants as $participant)
-                                <option value="{{ $participant->id }}" {{ $participantId == $participant->id ? 'selected' : '' }}>
-                                    {{ $participant->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Sort Filter -->
-                    <div class="min-w-48">
-                        <select onchange="window.location.href='{{ route('gallery.index', ['type' => $type, 'participant' => request('participant')]) }}&sort=' + this.value"
-                                class="rounded border-gray-300 w-full">
-                            <option value="date_desc" {{ $sort === 'date_desc' ? 'selected' : '' }}>Newest First</option>
-                            <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest First</option>
-                        </select>
+                        <button onclick="clearSelection()" class="px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 rounded">
+                            Clear
+                        </button>
+                        <button onclick="openTagSheet()" class="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Tag
+                        </button>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Bulk Tagging Toolbar (Sticky) -->
-            <div id="bulk-toolbar" style="display: none; background-color: #2563eb; color: white; position: sticky; top: 6rem; z-index: 30;" class="shadow-lg rounded-lg mb-6 p-4">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <span class="font-semibold text-lg" style="color: white;"><span id="selection-count">0</span> selected</span>
-                        <button onclick="window.gallerySelection.selectAll()" style="background-color: #1d4ed8; color: white;" class="px-4 py-2 hover:bg-blue-800 rounded text-sm font-medium">
-                            Select All
-                        </button>
-                        <button onclick="window.gallerySelection.clearAll()" style="background-color: #1d4ed8; color: white;" class="px-4 py-2 hover:bg-blue-800 rounded text-sm font-medium">
-                            Clear All
-                        </button>
+        <!-- Simple Grid -->
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div id="media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                @include('gallery.partials.media-grid', ['media' => $media, 'tags' => $tags])
+            </div>
+
+            <div id="loading" class="hidden text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+
+            @if($media->isEmpty())
+                <div class="text-center py-12 text-gray-500">
+                    <p>No media found</p>
+                </div>
+            @endif
+        </div>
+
+        <!-- Tag Sheet (slides up from bottom) -->
+        <div id="tag-sheet" class="hidden fixed inset-0 z-50">
+            <div class="absolute inset-0 bg-black/50" onclick="closeTagSheet()"></div>
+            <div class="absolute bottom-0 inset-x-0 bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between">
+                    <h3 class="font-semibold">Tag Items</h3>
+                    <button onclick="closeTagSheet()" class="p-1 hover:bg-gray-100 rounded">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <!-- Existing Tags -->
+                    <div>
+                        <p class="text-sm font-medium mb-2">Tags:</p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($tags as $tag)
+                            <button onclick="applyTag({{ $tag->id }}, '{{ addslashes($tag->name) }}')"
+                                    class="px-4 py-2 bg-gray-100 hover:bg-blue-100 rounded-lg text-sm">
+                                {{ $tag->name }}
+                            </button>
+                            @endforeach
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2 relative" x-data="{ showTags: false, showNewTag: false, newTagName: '' }">
-                        <button @click="showTags = !showTags" style="background-color: #16a34a; color: white;" class="px-4 py-2 hover:bg-green-700 rounded font-semibold">
-                            <span x-show="!showTags">📌 Tag Selected</span>
-                            <span x-show="showTags">✕ Hide Tags</span>
-                        </button>
-
-                        <!-- Tag selection dropdown -->
-                        <div x-show="showTags" x-collapse class="absolute right-0 top-full mt-2 bg-white text-gray-800 rounded-lg shadow-xl p-4 w-96 max-h-96 overflow-y-auto">
-                            <p class="text-sm font-semibold mb-2">Select tags to apply:</p>
-                            <div class="flex flex-wrap gap-2 mb-3">
-                                @foreach($tags as $tag)
-                                <button onclick="window.gallerySelection.applyTag({{ $tag->id }}, '{{ addslashes($tag->name) }}')"
-                                        class="px-3 py-1 bg-gray-100 hover:bg-blue-100 rounded text-sm transition">
-                                    + {{ $tag->name }}
-                                </button>
-                                @endforeach
-                            </div>
-
-                            <!-- Create new tag inline -->
-                            <div class="border-t border-gray-300 pt-3">
-                                <button type="button" @click="showNewTag = !showNewTag" class="text-sm text-green-600 hover:text-green-800 font-medium mb-2">
-                                    <span x-show="!showNewTag">+ Create New Tag</span>
-                                    <span x-show="showNewTag">✕ Cancel</span>
-                                </button>
-                                <div x-show="showNewTag" x-collapse>
-                                    <div class="flex gap-2">
-                                        <input type="text" x-model="newTagName" placeholder="New tag name" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500" maxlength="50">
-                                        <button @click="window.gallerySelection.createAndApplyTag(newTagName); newTagName = ''; showNewTag = false;" :disabled="!newTagName.trim()" class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                            Create & Apply
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Create New Tag -->
+                    <div class="border-t pt-4">
+                        <p class="text-sm font-medium mb-2">New Tag:</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-tag-input" placeholder="Tag name..."
+                                   class="flex-1 px-3 py-2 border rounded-lg"
+                                   onkeypress="if(event.key==='Enter') createTag()">
+                            <button onclick="createTag()"
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                Create
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Gallery Grid with Infinite Scroll -->
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <div id="media-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    @include('gallery.partials.media-grid', ['media' => $media, 'tags' => $tags])
-                </div>
-
-                <!-- Loading indicator -->
-                <div id="loading-indicator" class="hidden text-center py-8">
-                    <svg class="animate-spin h-8 w-8 mx-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-gray-600 mt-2">Loading more...</p>
-                </div>
-
-                @if($media->isEmpty())
-                    <div class="text-center text-gray-500 py-12">
-                        No media found. Import a chat with media files to see them here!
-                    </div>
-                @endif
             </div>
         </div>
     </div>
 
     @push('scripts')
     <script>
-        // Gallery Selection Manager
-        window.gallerySelection = {
-            selected: new Set(),
+        let selected = new Set();
 
-            toggle(messageId) {
-                if (this.selected.has(messageId)) {
-                    this.selected.delete(messageId);
-                } else {
-                    this.selected.add(messageId);
-                }
-                this.updateUI();
-            },
+        function toggleSelection(id, checkbox) {
+            if (checkbox.checked) {
+                selected.add(id);
+            } else {
+                selected.delete(id);
+            }
+            updateSelectionBar();
+        }
 
-            selectAll() {
-                document.querySelectorAll('.media-checkbox').forEach(cb => {
-                    cb.checked = true;
-                    this.selected.add(parseInt(cb.dataset.messageId));
-                });
-                this.updateUI();
-            },
+        function updateSelectionBar() {
+            const bar = document.getElementById('selection-bar');
+            const count = document.getElementById('selection-count');
+            count.textContent = selected.size;
 
-            clearAll() {
-                document.querySelectorAll('.media-checkbox').forEach(cb => {
-                    cb.checked = false;
-                });
-                this.selected.clear();
-                this.updateUI();
-            },
+            if (selected.size > 0) {
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+        }
 
-            updateUI() {
-                const count = this.selected.size;
-                const toolbar = document.getElementById('bulk-toolbar');
-                const countEl = document.getElementById('selection-count');
+        function clearSelection() {
+            selected.clear();
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+            updateSelectionBar();
+        }
 
-                if (countEl) countEl.textContent = count;
-                if (toolbar) {
-                    toolbar.style.display = count > 0 ? 'block' : 'none';
-                }
+        function openTagSheet() {
+            if (selected.size === 0) return;
+            document.getElementById('tag-sheet').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
 
-                console.log('Selection updated:', count, 'items selected');
-            },
+        function closeTagSheet() {
+            document.getElementById('tag-sheet').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
 
-            async createAndApplyTag(tagName) {
-                if (this.selected.size === 0) {
-                    alert('Please select items first');
-                    return;
-                }
+        async function applyTag(tagId, tagName) {
+            if (selected.size === 0) return;
 
-                if (!tagName || !tagName.trim()) {
-                    alert('Please enter a tag name');
-                    return;
-                }
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            let success = 0;
 
-                const token = document.querySelector('meta[name="csrf-token"]').content;
-
+            for (const id of selected) {
                 try {
-                    // Create the tag first
-                    const createResponse = await fetch('/tags', {
+                    await fetch(`/messages/${id}/tag`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token,
-                            'Accept': 'application/json'
+                            'X-CSRF-TOKEN': token
                         },
-                        body: JSON.stringify({ name: tagName.trim() })
+                        body: JSON.stringify({ tag_id: tagId })
                     });
-
-                    if (!createResponse.ok) {
-                        const error = await createResponse.json();
-                        alert(`Failed to create tag: ${error.message || 'Unknown error'}`);
-                        return;
-                    }
-
-                    const tagData = await createResponse.json();
-                    const newTagId = tagData.id || tagData.tag?.id;
-
-                    if (!newTagId) {
-                        alert('Tag created but could not get ID. Please refresh and try again.');
-                        return;
-                    }
-
-                    // Now apply it to selected items
-                    await this.applyTag(newTagId, tagName.trim());
-                } catch (error) {
-                    console.error('Error creating tag:', error);
-                    alert(`Error creating tag: ${error.message}`);
+                    success++;
+                } catch (e) {
+                    console.error(e);
                 }
-            },
-
-            async applyTag(tagId, tagName) {
-                if (this.selected.size === 0) return;
-
-                const messageIds = Array.from(this.selected);
-                const token = document.querySelector('meta[name="csrf-token"]').content;
-
-                let successCount = 0;
-                let errorCount = 0;
-
-                // Show progress
-                const progressMsg = `Tagging ${messageIds.length} items...`;
-                console.log(progressMsg);
-
-                // Tag each message
-                for (const messageId of messageIds) {
-                    try {
-                        const response = await fetch(`/messages/${messageId}/tag`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': token,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({ tag_id: tagId })
-                        });
-
-                        if (response.ok) {
-                            successCount++;
-                        } else {
-                            errorCount++;
-                        }
-                    } catch (error) {
-                        console.error('Error tagging message:', messageId, error);
-                        errorCount++;
-                    }
-                }
-
-                // Reload page to show updated tags
-                alert(`Tagged ${successCount} items with "${tagName}"${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
-                window.location.reload();
             }
-        };
 
-        // Infinite Scroll
-        let currentPage = {{ $media->currentPage() }};
-        let hasMore = {{ $media->hasMorePages() ? 'true' : 'false' }};
-        let isLoading = false;
-
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const mediaGrid = document.getElementById('media-grid');
-
-        function loadMore() {
-            if (isLoading || !hasMore) return;
-
-            isLoading = true;
-            loadingIndicator.classList.remove('hidden');
-
-            const params = new URLSearchParams(window.location.search);
-            params.set('page', currentPage + 1);
-
-            fetch(`{{ route('gallery.index') }}?${params.toString()}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = data.html;
-
-                // Append new items
-                while (tempDiv.firstChild) {
-                    mediaGrid.appendChild(tempDiv.firstChild);
-                }
-
-                currentPage = data.next_page;
-                hasMore = data.has_more;
-                isLoading = false;
-                loadingIndicator.classList.add('hidden');
-            })
-            .catch(error => {
-                console.error('Error loading more items:', error);
-                isLoading = false;
-                loadingIndicator.classList.add('hidden');
-            });
+            alert(`Tagged ${success} items`);
+            window.location.reload();
         }
 
-        // Detect when user scrolls near bottom
+        async function createTag() {
+            const input = document.getElementById('new-tag-input');
+            const name = input.value.trim();
+
+            if (!name || selected.size === 0) return;
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+
+            try {
+                const res = await fetch('/tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ name })
+                });
+
+                const data = await res.json();
+                await applyTag(data.id, name);
+            } catch (e) {
+                alert('Error creating tag');
+            }
+        }
+
+        // Infinite scroll
+        let page = {{ $media->currentPage() }};
+        let hasMore = {{ $media->hasMorePages() ? 'true' : 'false' }};
+        let loading = false;
+
         window.addEventListener('scroll', () => {
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+            if (loading || !hasMore) return;
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
                 loadMore();
             }
         });
 
-        // Initial check in case content doesn't fill screen
-        if (document.body.offsetHeight <= window.innerHeight && hasMore) {
-            loadMore();
+        async function loadMore() {
+            loading = true;
+            document.getElementById('loading').classList.remove('hidden');
+
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', page + 1);
+
+            try {
+                const res = await fetch(`{{ route('gallery.index') }}?${params}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+
+                const temp = document.createElement('div');
+                temp.innerHTML = data.html;
+                document.getElementById('media-grid').append(...temp.children);
+
+                page = data.next_page;
+                hasMore = data.has_more;
+            } catch (e) {
+                console.error(e);
+            }
+
+            loading = false;
+            document.getElementById('loading').classList.add('hidden');
         }
     </script>
     @endpush
