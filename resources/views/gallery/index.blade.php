@@ -110,8 +110,7 @@
                             @endif
 
                             <!-- Tags Section (below media) -->
-                            @if($tags->isNotEmpty())
-                            <div class="mt-2 bg-white rounded-lg p-2 shadow" x-data="{ showTags: false }">
+                            <div class="mt-2 bg-white rounded-lg p-2 shadow" x-data="{ showTags: false, showNewTag: false, newTagName: '' }">
                                 <div class="flex items-center justify-between mb-1">
                                     <span class="text-xs text-gray-500">Tags:</span>
                                     <button type="button" @click="showTags = !showTags" class="text-xs text-blue-600 hover:text-blue-800">
@@ -137,21 +136,37 @@
                                 </div>
 
                                 <!-- Available tags (collapsible) -->
-                                <div x-show="showTags" x-collapse class="flex flex-wrap gap-1 pt-1">
-                                    @foreach($tags as $tag)
-                                        @if(!$item->message->tags->contains($tag->id))
-                                        <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                <div x-show="showTags" x-collapse class="pt-1 border-t border-gray-200 mt-1">
+                                    <div class="flex flex-wrap gap-1 mb-2">
+                                        @foreach($tags as $tag)
+                                            @if(!$item->message->tags->contains($tag->id))
+                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline">
+                                                @csrf
+                                                <input type="hidden" name="tag_id" value="{{ $tag->id }}">
+                                                <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
+                                                    + {{ $tag->name }}
+                                                </button>
+                                            </form>
+                                            @endif
+                                        @endforeach
+                                    </div>
+
+                                    <!-- Create new tag inline -->
+                                    <div class="border-t border-gray-300 pt-2">
+                                        <button type="button" @click="showNewTag = !showNewTag" class="text-xs text-green-600 hover:text-green-800 font-medium mb-1">
+                                            <span x-show="!showNewTag">+ Create New Tag</span>
+                                            <span x-show="showNewTag">Cancel</span>
+                                        </button>
+                                        <form x-show="showNewTag" x-collapse action="{{ route('tags.store') }}" method="POST" class="flex gap-1">
                                             @csrf
-                                            <input type="hidden" name="tag_id" value="{{ $tag->id }}">
-                                            <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition">
-                                                + {{ $tag->name }}
+                                            <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50">
+                                            <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition">
+                                                Create
                                             </button>
                                         </form>
-                                        @endif
-                                    @endforeach
+                                    </div>
                                 </div>
                             </div>
-                            @endif
                         </div>
                     @empty
                         <div class="col-span-full text-center text-gray-500 py-12">
