@@ -53,7 +53,7 @@
                     <input type="text" id="quick-tag-input" placeholder="New tag name..."
                            style="flex: 1; padding: 8px 12px; border: 1px solid #93c5fd; border-radius: 6px;"
                            onkeypress="if(event.key==='Enter') createQuickTag()">
-                    <button onclick="createQuickTag()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
+                    <button id="quick-tag-btn" onclick="createQuickTag()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
                         Create & Apply
                     </button>
                     <button onclick="hideQuickTag()" style="background-color: #6b7280; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-gray-600">
@@ -165,9 +165,15 @@
 
         async function createQuickTag() {
             const input = document.getElementById('quick-tag-input');
+            const btn = document.getElementById('quick-tag-btn');
             const name = input.value.trim();
 
             if (!name || selected.size === 0) return;
+
+            // Show loading state
+            btn.disabled = true;
+            btn.style.backgroundColor = '#9ca3af';
+            btn.textContent = 'Creating...';
 
             const token = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -185,14 +191,31 @@
                     const errorText = await res.text();
                     console.error('Error response:', errorText);
                     alert('Error creating tag: ' + (res.status === 422 ? 'Tag already exists' : res.statusText));
+                    // Reset button
+                    btn.disabled = false;
+                    btn.style.backgroundColor = '#16a34a';
+                    btn.textContent = 'Create & Apply';
                     return;
                 }
 
                 const data = await res.json();
+
+                // Show applying state
+                btn.textContent = 'Applying...';
+
                 await applyTag(data.id, name);
+
+                // Success - show checkmark briefly
+                btn.style.backgroundColor = '#059669';
+                btn.textContent = '✓ Done!';
+
             } catch (e) {
                 console.error('Exception:', e);
                 alert('Error creating tag: ' + e.message);
+                // Reset button
+                btn.disabled = false;
+                btn.style.backgroundColor = '#16a34a';
+                btn.textContent = 'Create & Apply';
             }
         }
 
