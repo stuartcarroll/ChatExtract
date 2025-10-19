@@ -12,7 +12,7 @@ class SearchController extends Controller
     /**
      * Display the search interface.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
@@ -26,7 +26,19 @@ class SearchController extends Controller
             $query->whereIn('chat_id', $userChatIds);
         })->orderBy('name')->get(['id', 'name']);
 
-        return view('search.index', compact('chats', 'tags', 'participants'));
+        // If tag_id is provided in query params, auto-search
+        $results = null;
+        $selectedTagId = $request->query('tag_id');
+        if ($selectedTagId) {
+            // Perform search with just the tag filter
+            $searchRequest = new Request([
+                'tag_id' => $selectedTagId,
+                'query' => ''
+            ]);
+            $results = $this->performSearch($searchRequest);
+        }
+
+        return view('search.index', compact('chats', 'tags', 'participants', 'results', 'selectedTagId'));
     }
 
     /**
@@ -54,6 +66,31 @@ class SearchController extends Controller
             'tag_id' => 'nullable|exists:tags,id',
             'only_stories' => 'nullable|boolean',
         ]);
+
+        $results = $this->performSearch($request);
+
+        // Get user's accessible chats for filter dropdown
+        $chats = auth()->user()->accessibleChats()->get();
+
+        // Get all tags for filter dropdown (global)
+        $tags = Tag::orderBy('name')->get();
+
+        // Get all unique participants from user's accessible chats
+        $participants = \App\Models\Participant::whereHas('messages', function ($query) {
+            $userChatIds = auth()->user()->accessibleChatIds()->toArray();
+            $query->whereIn('chat_id', $userChatIds);
+        })->orderBy('name')->get(['id', 'name']);
+
+        $selectedTagId = $request->input('tag_id');
+
+        return view('search.index', compact('results', 'chats', 'tags', 'participants', 'selectedTagId'));
+    }
+
+    /**
+     * Internal method to perform search logic.
+     */
+    private function performSearch(Request $request)
+    {
 
         // Get user's accessible chat IDs for security
         $userChatIds = auth()->user()->accessibleChatIds()->toArray();
@@ -158,19 +195,7 @@ class SearchController extends Controller
             );
         }
 
-        // Get user's accessible chats for filter dropdown
-        $chats = auth()->user()->accessibleChats()->get();
-
-        // Get all tags for filter dropdown (global)
-        $tags = Tag::orderBy('name')->get();
-
-        // Get all unique participants from user's accessible chats
-        $participants = \App\Models\Participant::whereHas('messages', function ($query) {
-            $userChatIds = auth()->user()->accessibleChatIds()->toArray();
-            $query->whereIn('chat_id', $userChatIds);
-        })->orderBy('name')->get(['id', 'name']);
-
-        return view('search.index', compact('results', 'chats', 'tags', 'participants'));
+        return $results;
     }
 
     /**

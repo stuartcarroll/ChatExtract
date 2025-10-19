@@ -55,6 +55,11 @@
                                         <span class="text-sm text-gray-500">
                                             {{ $tag->messages_count }} {{ Str::plural('message', $tag->messages_count) }}
                                         </span>
+                                        @if($tag->messages_count > 0)
+                                            <a href="{{ route('search.index', ['tag_id' => $tag->id]) }}" class="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                                                View Messages
+                                            </a>
+                                        @endif
                                     </div>
 
                                     <div class="flex gap-2">

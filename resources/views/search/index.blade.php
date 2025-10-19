@@ -34,7 +34,7 @@
                         </div>
 
                         <!-- Quick Filters (Collapsible) -->
-                        <div x-data="{ open: {{ count(request()->except('_token', 'query')) > 0 ? 'true' : 'false' }} }" class="border-t pt-4">
+                        <div x-data="{ open: {{ (count(request()->except('_token', 'query')) > 0 || isset($selectedTagId)) ? 'true' : 'false' }} }" class="border-t pt-4">
                             <div class="flex items-center justify-between mb-3">
                                 <button type="button" @click="open = !open" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
                                     <svg class="w-4 h-4 mr-2 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@
                                     <select name="tag_id" class="w-full text-sm rounded-md border-gray-300">
                                         <option value="">Any Tag</option>
                                         @foreach ($tags as $tag)
-                                            <option value="{{ $tag->id }}" {{ request('tag_id') == $tag->id ? 'selected' : '' }}>
+                                            <option value="{{ $tag->id }}" {{ (request('tag_id') == $tag->id || (isset($selectedTagId) && $selectedTagId == $tag->id)) ? 'selected' : '' }}>
                                                 {{ $tag->name }}
                                             </option>
                                         @endforeach
