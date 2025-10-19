@@ -4,7 +4,7 @@
         <div class="bg-white border-b sticky top-0 z-30 shadow-sm">
             <div class="max-w-7xl mx-auto px-4 py-3">
                 <!-- Filters Row -->
-                <div class="flex gap-2 mb-3 overflow-x-auto">
+                <div class="flex gap-2 overflow-x-auto">
                     <select onchange="window.location.href='{{ route('gallery.index') }}?type=' + this.value + '&participant={{ request('participant') }}&sort={{ request('sort', 'date_desc') }}'"
                             class="px-3 py-2 text-sm border rounded-lg bg-white">
                         <option value="all" {{ $type === 'all' ? 'selected' : '' }}>All ({{ $counts['all'] }})</option>
@@ -29,37 +29,41 @@
                         <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest</option>
                     </select>
                 </div>
+            </div>
+        </div>
 
-                <!-- Selection Bar (shows when items selected) - Sticky -->
-                <div id="selection-bar" style="display: none; position: sticky; top: 0; z-index: 50; background-color: #2563eb; color: white; padding: 12px; border-radius: 8px;" class="items-center justify-between shadow-lg">
-                    <span class="text-sm font-semibold">
-                        <span id="selection-count">0</span> selected
-                    </span>
-                    <div class="flex gap-2">
-                        <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
-                            Clear
-                        </button>
-                        <button onclick="showQuickTag()" style="background-color: #10b981; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-green-600">
-                            Quick Tag
-                        </button>
-                        <button onclick="openTagSheet()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
-                            🏷️ All Tags
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Quick Tag Input (inline) - Sticky -->
-                <div id="quick-tag" style="display: none; position: sticky; top: 60px; z-index: 50; background-color: #dbeafe; padding: 12px; border-radius: 8px; margin-top: 8px;" class="flex gap-2">
-                    <input type="text" id="quick-tag-input" placeholder="New tag name..."
-                           style="flex: 1; padding: 8px 12px; border: 1px solid #93c5fd; border-radius: 6px;"
-                           onkeypress="if(event.key==='Enter') createQuickTag()">
-                    <button id="quick-tag-btn" onclick="createQuickTag()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
-                        Create & Apply
+        <!-- Selection Bar (Fixed when items selected) -->
+        <div id="selection-bar" style="display: none; position: fixed; top: 70px; left: 0; right: 0; z-index: 40; background-color: #2563eb; color: white; padding: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" class="items-center justify-between">
+            <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
+                <span class="text-sm font-semibold">
+                    <span id="selection-count">0</span> selected
+                </span>
+                <div class="flex gap-2">
+                    <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
+                        Clear
                     </button>
-                    <button onclick="hideQuickTag()" style="background-color: #6b7280; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-gray-600">
-                        Cancel
+                    <button onclick="showQuickTag()" style="background-color: #10b981; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-green-600">
+                        Quick Tag
+                    </button>
+                    <button onclick="openTagSheet()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
+                        🏷️ All Tags
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Quick Tag Input (Fixed) -->
+        <div id="quick-tag" style="display: none; position: fixed; top: 130px; left: 0; right: 0; z-index: 40; background-color: #dbeafe; padding: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <div class="max-w-7xl mx-auto px-4 flex gap-2">
+                <input type="text" id="quick-tag-input" placeholder="New tag name..."
+                       style="flex: 1; padding: 8px 12px; border: 1px solid #93c5fd; border-radius: 6px;"
+                       onkeypress="if(event.key==='Enter') createQuickTag()">
+                <button id="quick-tag-btn" onclick="createQuickTag()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
+                    Create & Apply
+                </button>
+                <button onclick="hideQuickTag()" style="background-color: #6b7280; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-gray-600">
+                    Cancel
+                </button>
             </div>
         </div>
 
@@ -79,6 +83,15 @@
                 </div>
             @endif
         </div>
+
+        <!-- Scroll to Top Button -->
+        <button id="scroll-to-top" onclick="scrollToTop()"
+                style="display: none; position: fixed; bottom: 24px; right: 24px; z-index: 45; background-color: #2563eb; color: white; width: 48px; height: 48px; border-radius: 50%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);"
+                class="flex items-center justify-center hover:bg-blue-700 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+            </svg>
+        </button>
 
         <!-- Tag Sheet (slides up from bottom) -->
         <div id="tag-sheet" class="hidden fixed inset-0 z-50">
@@ -336,11 +349,28 @@
         let loading = false;
 
         window.addEventListener('scroll', () => {
-            if (loading || !hasMore) return;
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-                loadMore();
+            // Infinite scroll
+            if (!loading && hasMore) {
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+                    loadMore();
+                }
+            }
+
+            // Show/hide scroll to top button
+            const scrollBtn = document.getElementById('scroll-to-top');
+            if (window.scrollY > 300) {
+                scrollBtn.style.display = 'flex';
+            } else {
+                scrollBtn.style.display = 'none';
             }
         });
+
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
 
         async function loadMore() {
             loading = true;
