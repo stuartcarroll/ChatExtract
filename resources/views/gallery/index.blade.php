@@ -31,18 +31,34 @@
                 </div>
 
                 <!-- Selection Bar (shows when items selected) -->
-                <div id="selection-bar" style="display: none;" class="items-center justify-between p-3 bg-blue-600 text-white rounded-lg shadow-lg">
+                <div id="selection-bar" style="display: none; background-color: #2563eb; color: white; padding: 12px; border-radius: 8px;" class="items-center justify-between shadow-lg">
                     <span class="text-sm font-semibold">
                         <span id="selection-count">0</span> selected
                     </span>
                     <div class="flex gap-2">
-                        <button onclick="clearSelection()" class="px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg font-medium">
+                        <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
                             Clear
                         </button>
-                        <button onclick="openTagSheet()" class="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded-lg font-medium">
-                            🏷️ Tag Items
+                        <button onclick="showQuickTag()" style="background-color: #10b981; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-green-600">
+                            Quick Tag
+                        </button>
+                        <button onclick="openTagSheet()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
+                            🏷️ All Tags
                         </button>
                     </div>
+                </div>
+
+                <!-- Quick Tag Input (inline) -->
+                <div id="quick-tag" style="display: none; background-color: #dbeafe; padding: 12px; border-radius: 8px; margin-top: 8px;" class="flex gap-2">
+                    <input type="text" id="quick-tag-input" placeholder="New tag name..."
+                           style="flex: 1; padding: 8px 12px; border: 1px solid #93c5fd; border-radius: 6px;"
+                           onkeypress="if(event.key==='Enter') createQuickTag()">
+                    <button onclick="createQuickTag()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
+                        Create & Apply
+                    </button>
+                    <button onclick="hideQuickTag()" style="background-color: #6b7280; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-gray-600">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -134,10 +150,47 @@
             selected.clear();
             document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
             updateSelectionBar();
+            hideQuickTag();
+        }
+
+        function showQuickTag() {
+            document.getElementById('quick-tag').style.display = 'flex';
+            document.getElementById('quick-tag-input').focus();
+        }
+
+        function hideQuickTag() {
+            document.getElementById('quick-tag').style.display = 'none';
+            document.getElementById('quick-tag-input').value = '';
+        }
+
+        async function createQuickTag() {
+            const input = document.getElementById('quick-tag-input');
+            const name = input.value.trim();
+
+            if (!name || selected.size === 0) return;
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+
+            try {
+                const res = await fetch('/tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ name })
+                });
+
+                const data = await res.json();
+                await applyTag(data.id, name);
+            } catch (e) {
+                alert('Error creating tag');
+            }
         }
 
         function openTagSheet() {
             if (selected.size === 0) return;
+            hideQuickTag();
             document.getElementById('tag-sheet').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
