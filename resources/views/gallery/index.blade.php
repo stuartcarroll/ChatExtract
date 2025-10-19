@@ -181,10 +181,18 @@
                     body: JSON.stringify({ name })
                 });
 
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('Error response:', errorText);
+                    alert('Error creating tag: ' + (res.status === 422 ? 'Tag already exists' : res.statusText));
+                    return;
+                }
+
                 const data = await res.json();
                 await applyTag(data.id, name);
             } catch (e) {
-                alert('Error creating tag');
+                console.error('Exception:', e);
+                alert('Error creating tag: ' + e.message);
             }
         }
 
