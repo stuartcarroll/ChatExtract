@@ -110,8 +110,8 @@ class SearchController extends Controller
             // Get ALL results from Scout (before filtering)
             $allResults = $query->get();
 
-            // Load relationships for all results
-            $allResults->load(['chat', 'participant', 'media']);
+            // Load relationships for all results (including tags for tag filter)
+            $allResults->load(['chat', 'participant', 'media', 'tags']);
 
             // Apply participant filter
             if ($request->filled('participant_id')) {
@@ -136,11 +136,11 @@ class SearchController extends Controller
                 });
             }
 
-            // Apply tag filter
+            // Apply tag filter (use loaded tags relationship, not a new query)
             if ($request->filled('tag_id')) {
                 $tagId = $request->tag_id;
                 $allResults = $allResults->filter(function ($message) use ($tagId) {
-                    return $message->tags()->where('tags.id', $tagId)->exists();
+                    return $message->tags->contains('id', $tagId);
                 });
             }
 
