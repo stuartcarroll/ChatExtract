@@ -6,7 +6,7 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Filters -->
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 p-4">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 p-4 sticky top-0 z-20">
                 <div class="flex flex-wrap gap-4 items-center">
                     <!-- Type Filter -->
                     <div class="flex gap-2">
@@ -52,134 +52,201 @@
                 </div>
             </div>
 
-            <!-- Gallery Grid -->
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    @forelse ($media as $item)
-                        <div class="relative group">
-                            @if ($item->type === 'image')
-                                <a href="{{ asset('storage/' . $item->file_path) }}" target="_blank" class="block">
-                                    <img src="{{ asset('storage/' . $item->file_path) }}" 
-                                         alt="{{ $item->filename }}"
-                                         class="w-full h-48 object-cover rounded-lg shadow hover:shadow-lg transition">
-                                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-xs rounded-b-lg opacity-0 group-hover:opacity-100 transition">
-                                        <p class="truncate">{{ $item->message->participant->name ?? 'Unknown' }}</p>
-                                        <p class="truncate text-gray-300">{{ $item->message->chat->name }}</p>
-                                        <p class="text-gray-400">{{ $item->message->sent_at->format('M d, Y') }}</p>
-                                    </div>
-                                </a>
-                            @elseif ($item->type === 'video')
-                                <div class="relative">
-                                    <video class="w-full h-48 object-cover rounded-lg shadow">
-                                        <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
-                                    </video>
-                                    <div class="absolute inset-0 flex items-center justify-center">
-                                        <svg class="w-12 h-12 text-white opacity-75" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
-                                        </svg>
-                                    </div>
-                                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-xs rounded-b-lg">
-                                        <p class="truncate">{{ $item->message->participant->name ?? 'Unknown' }}</p>
-                                        <p class="truncate text-gray-300">{{ $item->message->chat->name }}</p>
-                                    </div>
-                                </div>
-                            @elseif ($item->type === 'audio')
-                                <div class="bg-gray-100 rounded-lg p-4 h-48 flex flex-col justify-between overflow-hidden">
-                                    <div class="text-center mb-2">
-                                        <svg class="w-12 h-12 mx-auto text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z"/>
-                                        </svg>
-                                    </div>
+            <!-- Bulk Tagging Toolbar (Sticky) -->
+            <div id="bulk-toolbar" class="hidden bg-blue-600 text-white shadow-lg sm:rounded-lg mb-6 p-4 sticky top-24 z-20">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <span class="font-semibold"><span id="selection-count">0</span> selected</span>
+                        <button onclick="window.gallerySelection.selectAll()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm">
+                            Select All
+                        </button>
+                        <button onclick="window.gallerySelection.clearAll()" class="px-3 py-1 bg-blue-700 hover:bg-blue-800 rounded text-sm">
+                            Clear All
+                        </button>
+                    </div>
 
-                                    @if($item->transcription)
-                                        <div class="mb-2 px-2 py-1 bg-white rounded text-xs text-gray-700 overflow-y-auto flex-1 max-h-20">
-                                            <p class="italic">{{ Str::limit($item->transcription, 120) }}</p>
-                                        </div>
-                                    @endif
+                    <div class="flex items-center gap-2" x-data="{ showTags: false }">
+                        <button @click="showTags = !showTags" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-semibold">
+                            <span x-show="!showTags">Tag Selected</span>
+                            <span x-show="showTags">Hide Tags</span>
+                        </button>
 
-                                    <div>
-                                        <audio controls class="w-full">
-                                            <source src="{{ asset('storage/' . $item->file_path) }}" type="{{ $item->mime_type }}">
-                                        </audio>
-                                        <div class="mt-2 text-xs text-center text-gray-600">
-                                            <p class="truncate">{{ $item->message->participant->name ?? 'Unknown' }}</p>
-                                            <p class="truncate text-gray-500">{{ $item->message->chat->name }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-
-                            <!-- Tags Section (below media) -->
-                            <div class="mt-2 bg-white rounded-lg p-2 shadow" x-data="{ showTags: false, showNewTag: false, newTagName: '' }">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs text-gray-500">Tags:</span>
-                                    <button type="button" @click="showTags = !showTags" class="text-xs text-blue-600 hover:text-blue-800">
-                                        <span x-show="!showTags">+ Add</span>
-                                        <span x-show="showTags">Hide</span>
-                                    </button>
-                                </div>
-
-                                <!-- Current tags -->
-                                <div class="flex flex-wrap gap-1 mb-1">
-                                    @foreach($item->message->tags as $tag)
-                                    <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
-                                        @csrf
-                                        <input type="hidden" name="tag_id" value="{{ $tag->id }}">
-                                        <button type="submit" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition" onclick="event.stopPropagation()">
-                                            {{ $tag->name }}
-                                            <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                        </button>
-                                    </form>
-                                    @endforeach
-                                </div>
-
-                                <!-- Available tags (collapsible) -->
-                                <div x-show="showTags" x-collapse class="pt-1 border-t border-gray-200 mt-1" onclick="event.stopPropagation()">
-                                    <div class="flex flex-wrap gap-1 mb-2">
-                                        @foreach($tags as $tag)
-                                            @if(!$item->message->tags->contains($tag->id))
-                                            <form action="{{ route('messages.tag', $item->message) }}" method="POST" class="inline" onclick="event.stopPropagation()">
-                                                @csrf
-                                                <input type="hidden" name="tag_id" value="{{ $tag->id }}">
-                                                <button type="submit" class="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition" onclick="event.stopPropagation()">
-                                                    + {{ $tag->name }}
-                                                </button>
-                                            </form>
-                                            @endif
-                                        @endforeach
-                                    </div>
-
-                                    <!-- Create new tag inline -->
-                                    <div class="border-t border-gray-300 pt-2" onclick="event.stopPropagation()">
-                                        <button type="button" @click="showNewTag = !showNewTag" class="text-xs text-green-600 hover:text-green-800 font-medium mb-1" onclick="event.stopPropagation()">
-                                            <span x-show="!showNewTag">+ Create New Tag</span>
-                                            <span x-show="showNewTag">Cancel</span>
-                                        </button>
-                                        <form x-show="showNewTag" x-collapse action="{{ route('tags.store') }}" method="POST" class="flex gap-1" onclick="event.stopPropagation()">
-                                            @csrf
-                                            <input type="hidden" name="redirect_back" value="1">
-                                            <input type="text" name="name" x-model="newTagName" placeholder="New tag name" class="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" required maxlength="50" onclick="event.stopPropagation()">
-                                            <button type="submit" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition" onclick="event.stopPropagation()">
-                                                Create
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
+                        <!-- Tag selection dropdown -->
+                        <div x-show="showTags" x-collapse class="absolute right-0 top-full mt-2 bg-white text-gray-800 rounded-lg shadow-xl p-4 w-96 max-h-96 overflow-y-auto">
+                            <p class="text-sm font-semibold mb-2">Select tags to apply:</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($tags as $tag)
+                                <button onclick="window.gallerySelection.applyTag({{ $tag->id }}, '{{ addslashes($tag->name) }}')"
+                                        class="px-3 py-1 bg-gray-100 hover:bg-blue-100 rounded text-sm transition">
+                                    + {{ $tag->name }}
+                                </button>
+                                @endforeach
                             </div>
                         </div>
-                    @empty
-                        <div class="col-span-full text-center text-gray-500 py-12">
-                            No media found. Import a chat with media files to see them here!
-                        </div>
-                    @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Grid with Infinite Scroll -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div id="media-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @include('gallery.partials.media-grid', ['media' => $media, 'tags' => $tags])
                 </div>
 
-                <div class="mt-6">
-                    {{ $media->links() }}
+                <!-- Loading indicator -->
+                <div id="loading-indicator" class="hidden text-center py-8">
+                    <svg class="animate-spin h-8 w-8 mx-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-600 mt-2">Loading more...</p>
                 </div>
+
+                @if($media->isEmpty())
+                    <div class="text-center text-gray-500 py-12">
+                        No media found. Import a chat with media files to see them here!
+                    </div>
+                @endif
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        // Gallery Selection Manager
+        window.gallerySelection = {
+            selected: new Set(),
+
+            toggle(messageId) {
+                if (this.selected.has(messageId)) {
+                    this.selected.delete(messageId);
+                } else {
+                    this.selected.add(messageId);
+                }
+                this.updateUI();
+            },
+
+            selectAll() {
+                document.querySelectorAll('.media-checkbox').forEach(cb => {
+                    cb.checked = true;
+                    this.selected.add(parseInt(cb.dataset.messageId));
+                });
+                this.updateUI();
+            },
+
+            clearAll() {
+                document.querySelectorAll('.media-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                this.selected.clear();
+                this.updateUI();
+            },
+
+            updateUI() {
+                const count = this.selected.size;
+                document.getElementById('selection-count').textContent = count;
+                document.getElementById('bulk-toolbar').classList.toggle('hidden', count === 0);
+            },
+
+            async applyTag(tagId, tagName) {
+                if (this.selected.size === 0) return;
+
+                const messageIds = Array.from(this.selected);
+                const token = document.querySelector('meta[name="csrf-token"]').content;
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                // Show progress
+                const progressMsg = `Tagging ${messageIds.length} items...`;
+                console.log(progressMsg);
+
+                // Tag each message
+                for (const messageId of messageIds) {
+                    try {
+                        const response = await fetch(`/messages/${messageId}/tag`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': token,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ tag_id: tagId })
+                        });
+
+                        if (response.ok) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error('Error tagging message:', messageId, error);
+                        errorCount++;
+                    }
+                }
+
+                // Reload page to show updated tags
+                alert(`Tagged ${successCount} items with "${tagName}"${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
+                window.location.reload();
+            }
+        };
+
+        // Infinite Scroll
+        let currentPage = {{ $media->currentPage() }};
+        let hasMore = {{ $media->hasMorePages() ? 'true' : 'false' }};
+        let isLoading = false;
+
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const mediaGrid = document.getElementById('media-grid');
+
+        function loadMore() {
+            if (isLoading || !hasMore) return;
+
+            isLoading = true;
+            loadingIndicator.classList.remove('hidden');
+
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', currentPage + 1);
+
+            fetch(`{{ route('gallery.index') }}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data.html;
+
+                // Append new items
+                while (tempDiv.firstChild) {
+                    mediaGrid.appendChild(tempDiv.firstChild);
+                }
+
+                currentPage = data.next_page;
+                hasMore = data.has_more;
+                isLoading = false;
+                loadingIndicator.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Error loading more items:', error);
+                isLoading = false;
+                loadingIndicator.classList.add('hidden');
+            });
+        }
+
+        // Detect when user scrolls near bottom
+        window.addEventListener('scroll', () => {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+                loadMore();
+            }
+        });
+
+        // Initial check in case content doesn't fill screen
+        if (document.body.offsetHeight <= window.innerHeight && hasMore) {
+            loadMore();
+        }
+    </script>
+    @endpush
 </x-app-layout>

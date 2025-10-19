@@ -17,6 +17,7 @@ class GalleryController extends Controller
         $type = $request->get('type', 'all');
         $participantId = $request->get('participant');
         $sort = $request->get('sort', 'date_desc');
+        $page = $request->get('page', 1);
 
         // Get user's accessible chat IDs
         $chatIds = auth()->user()->accessibleChats()->pluck('id')->toArray();
@@ -57,8 +58,8 @@ class GalleryController extends Controller
                     break;
             }
 
-            // Get media with pagination and preserve query parameters
-            $media = $query->paginate(24)->withQueryString();
+            // Get media with pagination (50 items per page for infinite scroll)
+            $media = $query->paginate(50)->withQueryString();
 
             // Get counts in a single optimized query
             $countsRaw = Media::join('messages', 'media.message_id', '=', 'messages.id')
@@ -88,6 +89,15 @@ class GalleryController extends Controller
 
         // Get all tags for tagging interface (global)
         $tags = Tag::orderBy('name')->get();
+
+        // If AJAX request, return JSON for infinite scroll
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'html' => view('gallery.partials.media-grid', compact('media', 'tags'))->render(),
+                'has_more' => $media->hasMorePages(),
+                'next_page' => $media->currentPage() + 1
+            ]);
+        }
 
         return view('gallery.index', compact('media', 'type', 'counts', 'participants', 'participantId', 'tags', 'sort'));
     }
