@@ -91,72 +91,82 @@ class SearchController extends Controller
      */
     private function performSearch(Request $request)
     {
-
         // Get user's accessible chat IDs for security
         $userChatIds = auth()->user()->accessibleChatIds()->toArray();
 
         if (empty($userChatIds)) {
-            $results = collect();
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50, 1);
+        }
+
+        // If no search query, use query builder instead of Scout
+        if (empty($request->input('query'))) {
+            $query = Message::query()->whereIn('chat_id', $userChatIds);
+            $useScout = false;
         } else {
-            // If no search query, use query builder instead of Scout
-            if (empty($request->input('query'))) {
-                $query = Message::query()->whereIn('chat_id', $userChatIds);
-                $useScout = false;
-            } else {
-                // Use Laravel Scout for full-text search
-                $query = Message::search($request->input('query'))
-                    ->query(function ($builder) use ($userChatIds) {
-                        // Ensure user can only search chats they have access to
-                        $builder->whereIn('chat_id', $userChatIds);
-                    });
-                $useScout = true;
-            }
-
-            // Apply filters (different syntax for Scout vs Query Builder)
-            if ($request->filled('chat_id')) {
-                // Verify user has access to this chat
-                if (in_array($request->chat_id, $userChatIds)) {
-                    $query->where('chat_id', $request->chat_id);
-                }
-            }
-
-            if ($useScout) {
-                // Scout uses timestamp filters
-                if ($request->filled('date_from')) {
-                    $query->where('sent_at', '>=', strtotime($request->date_from));
-                }
-
-                if ($request->filled('date_to')) {
-                    $query->where('sent_at', '<=', strtotime($request->date_to));
-                }
-            } else {
-                // Query builder uses date strings
-                if ($request->filled('date_from')) {
-                    $query->whereDate('sent_at', '>=', $request->date_from);
-                }
-
-                if ($request->filled('date_to')) {
-                    $query->whereDate('sent_at', '<=', $request->date_to);
-                }
-            }
-
-            if ($request->filled('only_stories') && $request->only_stories) {
-                $query->where('is_story', true);
-            }
-
-            // Get ALL results from Scout (before filtering)
-            $allResults = $query->get();
-
-            // Load relationships for all results (including tags for tag filter)
-            $allResults->load(['chat', 'participant', 'media', 'tags']);
-
-            // Apply participant filter
-            if ($request->filled('participant_id')) {
-                $participantId = $request->participant_id;
-                $allResults = $allResults->filter(function ($message) use ($participantId) {
-                    return $message->participant_id == $participantId;
+            // Use Laravel Scout for full-text search
+            $query = Message::search($request->input('query'))
+                ->query(function ($builder) use ($userChatIds) {
+                    // Ensure user can only search chats they have access to
+                    $builder->whereIn('chat_id', $userChatIds);
                 });
+            $useScout = true;
+        }
+
+        // Apply filters that can be done at database level
+        if ($request->filled('chat_id')) {
+            // Verify user has access to this chat
+            if (in_array($request->chat_id, $userChatIds)) {
+                $query->where('chat_id', $request->chat_id);
             }
+        }
+
+        if ($request->filled('participant_id')) {
+            if ($useScout) {
+                $query->where('participant_id', $request->participant_id);
+            } else {
+                $query->where('participant_id', $request->participant_id);
+            }
+        }
+
+        if ($useScout) {
+            // Scout uses timestamp filters
+            if ($request->filled('date_from')) {
+                $query->where('sent_at', '>=', strtotime($request->date_from));
+            }
+
+            if ($request->filled('date_to')) {
+                $query->where('sent_at', '<=', strtotime($request->date_to));
+            }
+        } else {
+            // Query builder uses date strings
+            if ($request->filled('date_from')) {
+                $query->whereDate('sent_at', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('sent_at', '<=', $request->date_to);
+            }
+        }
+
+        if ($request->filled('only_stories') && $request->only_stories) {
+            $query->where('is_story', true);
+        }
+
+        // Optimize tag filter - use database join instead of loading all records
+        if ($request->filled('tag_id') && !$useScout) {
+            $query->whereHas('tags', function($q) use ($request) {
+                $q->where('tags.id', $request->tag_id);
+            });
+        }
+
+        // For Scout queries or non-tag filters that need collection filtering
+        $needsCollectionFiltering = $request->filled('media_type') ||
+                                     ($useScout && $request->filled('tag_id'));
+
+        if ($needsCollectionFiltering) {
+            // Get all results for filtering
+            $allResults = $query->get();
+            $allResults->load(['chat', 'participant', 'media', 'tags']);
 
             // Apply media type filter
             if ($request->filled('media_type')) {
@@ -167,21 +177,20 @@ class SearchController extends Controller
                     } elseif ($mediaType === 'no_media') {
                         return $message->media->isEmpty();
                     } else {
-                        // Filter by specific media type (image, video, audio)
                         return $message->media->where('type', $mediaType)->isNotEmpty();
                     }
                 });
             }
 
-            // Apply tag filter (use loaded tags relationship, not a new query)
-            if ($request->filled('tag_id')) {
+            // Apply tag filter for Scout queries
+            if ($useScout && $request->filled('tag_id')) {
                 $tagId = $request->tag_id;
                 $allResults = $allResults->filter(function ($message) use ($tagId) {
                     return $message->tags->contains('id', $tagId);
                 });
             }
 
-            // Manually paginate the filtered collection
+            // Manually paginate
             $perPage = 50;
             $currentPage = request()->get('page', 1);
             $offset = ($currentPage - 1) * $perPage;
@@ -193,6 +202,11 @@ class SearchController extends Controller
                 $currentPage,
                 ['path' => request()->url(), 'query' => request()->query()]
             );
+        } else {
+            // Use database pagination for better performance
+            $results = $query->with(['chat', 'participant', 'media', 'tags'])
+                             ->orderBy('sent_at', 'desc')
+                             ->paginate(50);
         }
 
         return $results;
