@@ -325,27 +325,33 @@
             if (selected.size === 0) return;
 
             const token = document.querySelector('meta[name="csrf-token"]').content;
-            let success = 0;
+            const messageIds = Array.from(selected);
 
-            for (const id of selected) {
-                try {
-                    const response = await fetch(`/messages/${id}/tag`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token
-                        },
-                        body: JSON.stringify({ tag_id: tagId })
-                    });
+            try {
+                // Batch tag all messages in a single request
+                const response = await fetch('/messages/batch-tag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({
+                        message_ids: messageIds,
+                        tag_id: tagId
+                    })
+                });
 
-                    if (response.ok) {
-                        success++;
-                        // Add tag chip to the item in DOM
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update DOM for all successfully tagged messages
+                    messageIds.forEach(id => {
                         updateTagChipsInDOM(id, tagId, tagName);
-                    }
-                } catch (e) {
-                    console.error(e);
+                    });
+                } else {
+                    console.error('Batch tag failed:', await response.text());
                 }
+            } catch (e) {
+                console.error('Exception during batch tag:', e);
             }
 
             // Clear selection and hide UI
