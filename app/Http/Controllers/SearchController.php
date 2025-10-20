@@ -30,12 +30,8 @@ class SearchController extends Controller
         $results = null;
         $selectedTagId = $request->query('tag_id');
         if ($selectedTagId) {
-            // Perform search with just the tag filter
-            $searchRequest = new Request([
-                'tag_id' => $selectedTagId,
-                'query' => ''
-            ]);
-            $results = $this->performSearch($searchRequest);
+            // Perform search with just the tag filter using the original request
+            $results = $this->performSearch($request);
         }
 
         return view('search.index', compact('chats', 'tags', 'participants', 'results', 'selectedTagId'));
