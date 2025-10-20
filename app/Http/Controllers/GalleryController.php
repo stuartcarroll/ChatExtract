@@ -18,6 +18,7 @@ class GalleryController extends Controller
         $participantId = $request->get('participant');
         $sort = $request->get('sort', 'date_desc');
         $page = $request->get('page', 1);
+        $tagFilter = $request->get('tags');
 
         // Get user's accessible chat IDs
         $chatIds = auth()->user()->accessibleChats()->pluck('id')->toArray();
@@ -42,6 +43,28 @@ class GalleryController extends Controller
                 $query->whereHas('message', function ($q) use ($participantId) {
                     $q->where('participant_id', $participantId);
                 });
+            }
+
+            // Filter by tags
+            if ($tagFilter) {
+                if ($tagFilter === 'untagged') {
+                    // Show only items with no tags
+                    $query->whereHas('message', function ($q) {
+                        $q->doesntHave('tags');
+                    });
+                } elseif (is_array($tagFilter)) {
+                    // Multiple tags - show items that have ALL selected tags
+                    $query->whereHas('message', function ($q) use ($tagFilter) {
+                        $q->whereHas('tags', function ($tagQuery) use ($tagFilter) {
+                            $tagQuery->whereIn('tags.id', $tagFilter);
+                        }, '=', count($tagFilter));
+                    });
+                } else {
+                    // Single tag filter
+                    $query->whereHas('message.tags', function ($q) use ($tagFilter) {
+                        $q->where('tags.id', $tagFilter);
+                    });
+                }
             }
 
             // Apply sorting

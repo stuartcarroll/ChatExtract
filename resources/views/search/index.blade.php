@@ -188,7 +188,46 @@
                                         <!-- Message Content -->
                                         <p class="text-gray-700 mb-2">{{ Str::limit($message->content, 300) }}</p>
 
-                                        <!-- Media & Tags -->
+                                        <!-- Embedded Media -->
+                                        @if ($message->media->isNotEmpty())
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+                                                @foreach($message->media as $item)
+                                                    @if($item->type === 'image')
+                                                        <div class="relative aspect-square bg-gray-100 rounded overflow-hidden">
+                                                            <img src="{{ asset('storage/' . $item->file_path) }}"
+                                                                 class="w-full h-full object-cover"
+                                                                 loading="lazy"
+                                                                 onclick="window.open(this.src, '_blank')">
+                                                        </div>
+                                                    @elseif($item->type === 'video')
+                                                        <div class="relative aspect-square bg-gray-900 rounded overflow-hidden">
+                                                            <video class="w-full h-full object-cover" controls preload="metadata">
+                                                                <source src="{{ asset('storage/' . $item->file_path) }}">
+                                                            </video>
+                                                        </div>
+                                                    @elseif($item->type === 'audio')
+                                                        <div class="col-span-2 bg-gradient-to-br from-purple-50 to-blue-50 p-3 rounded">
+                                                            <div class="flex items-center gap-2 mb-2">
+                                                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z"/>
+                                                                </svg>
+                                                                <span class="text-xs text-gray-600">Audio</span>
+                                                            </div>
+                                                            @if(!empty($item->transcription))
+                                                                <div class="mb-2 p-2 bg-white/80 rounded">
+                                                                    <p class="text-xs text-gray-700 italic">{{ Str::limit($item->transcription, 100) }}</p>
+                                                                </div>
+                                                            @endif
+                                                            <audio controls class="w-full" preload="none">
+                                                                <source src="{{ asset('storage/' . $item->file_path) }}">
+                                                            </audio>
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        <!-- View in Chat Link -->
                                         <div class="flex items-center justify-between mb-3">
                                             <div class="flex items-center space-x-2">
                                                 @if ($message->media->isNotEmpty())

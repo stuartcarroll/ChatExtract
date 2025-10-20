@@ -4,8 +4,8 @@
         <div class="bg-white border-b sticky top-0 z-30 shadow-sm">
             <div class="max-w-7xl mx-auto px-4 py-3">
                 <!-- Filters Row -->
-                <div class="flex gap-2 overflow-x-auto">
-                    <select onchange="window.location.href='{{ route('gallery.index') }}?type=' + this.value + '&participant={{ request('participant') }}&sort={{ request('sort', 'date_desc') }}'"
+                <div class="flex gap-2 overflow-x-auto pb-2">
+                    <select onchange="updateFilters('type', this.value)"
                             class="px-3 py-2 text-sm border rounded-lg bg-white">
                         <option value="all" {{ $type === 'all' ? 'selected' : '' }}>All ({{ $counts['all'] }})</option>
                         <option value="image" {{ $type === 'image' ? 'selected' : '' }}>Photos ({{ $counts['image'] }})</option>
@@ -13,7 +13,7 @@
                         <option value="audio" {{ $type === 'audio' ? 'selected' : '' }}>Audio ({{ $counts['audio'] }})</option>
                     </select>
 
-                    <select onchange="window.location.href='{{ route('gallery.index') }}?type={{ $type }}&participant=' + this.value + '&sort={{ request('sort', 'date_desc') }}'"
+                    <select onchange="updateFilters('participant', this.value)"
                             class="px-3 py-2 text-sm border rounded-lg bg-white flex-1 min-w-0">
                         <option value="">All People</option>
                         @foreach ($participants as $participant)
@@ -23,7 +23,29 @@
                         @endforeach
                     </select>
 
-                    <select onchange="window.location.href='{{ route('gallery.index') }}?type={{ $type }}&participant={{ request('participant') }}&sort=' + this.value"
+                    <select onchange="updateFilters('tags', this.value)"
+                            class="px-3 py-2 text-sm border rounded-lg bg-white"
+                            id="tag-filter"
+                            {{ request()->has('tags') && is_array(request('tags')) && count(request('tags')) > 1 ? 'multiple' : '' }}>
+                        <option value="">All Items</option>
+                        <option value="untagged" {{ request('tags') === 'untagged' ? 'selected' : '' }}>Untagged Only</option>
+                        <optgroup label="Filter by Tag">
+                            @foreach ($tags as $tag)
+                                <option value="{{ $tag->id }}"
+                                    {{ (request('tags') == $tag->id || (is_array(request('tags')) && in_array($tag->id, request('tags')))) ? 'selected' : '' }}>
+                                    {{ $tag->name }}
+                                </option>
+                            @endforeach
+                        </optgroup>
+                    </select>
+
+                    <button onclick="toggleMultiTagMode()"
+                            class="px-3 py-2 text-sm border rounded-lg bg-white hover:bg-gray-50 whitespace-nowrap"
+                            id="multi-tag-btn">
+                        🏷️ Multi-Tag
+                    </button>
+
+                    <select onchange="updateFilters('sort', this.value)"
                             class="px-3 py-2 text-sm border rounded-lg bg-white">
                         <option value="date_desc" {{ $sort === 'date_desc' ? 'selected' : '' }}>Newest</option>
                         <option value="date_asc" {{ $sort === 'date_asc' ? 'selected' : '' }}>Oldest</option>
@@ -141,6 +163,55 @@
     @push('scripts')
     <script>
         let selected = new Set();
+        let multiTagMode = false;
+
+        function updateFilters(param, value) {
+            const url = new URL(window.location);
+
+            // Handle multi-tag mode
+            if (param === 'tags' && multiTagMode) {
+                const select = document.getElementById('tag-filter');
+                const selectedOptions = Array.from(select.selectedOptions).map(opt => opt.value).filter(v => v && v !== 'untagged');
+
+                // Clear existing tags param
+                url.searchParams.delete('tags');
+                url.searchParams.delete('tags[]');
+
+                // Add all selected tags
+                if (selectedOptions.length > 0) {
+                    selectedOptions.forEach(tagId => {
+                        url.searchParams.append('tags[]', tagId);
+                    });
+                }
+            } else {
+                // Normal single selection
+                if (value) {
+                    url.searchParams.set(param, value);
+                } else {
+                    url.searchParams.delete(param);
+                }
+            }
+
+            window.location.href = url.toString();
+        }
+
+        function toggleMultiTagMode() {
+            multiTagMode = !multiTagMode;
+            const select = document.getElementById('tag-filter');
+            const btn = document.getElementById('multi-tag-btn');
+
+            if (multiTagMode) {
+                select.setAttribute('multiple', 'multiple');
+                select.size = 5;
+                btn.style.backgroundColor = '#2563eb';
+                btn.style.color = 'white';
+            } else {
+                select.removeAttribute('multiple');
+                select.size = 1;
+                btn.style.backgroundColor = '';
+                btn.style.color = '';
+            }
+        }
 
         function toggleSelection(id, checkbox) {
             if (checkbox.checked) {
