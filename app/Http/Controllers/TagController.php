@@ -117,4 +117,49 @@ class TagController extends Controller
 
         return back()->with('success', "Tag {$action} successfully.");
     }
+
+    /**
+     * Batch tag multiple messages.
+     */
+    public function batchTag(Request $request)
+    {
+        $request->validate([
+            'message_ids' => 'required|array',
+            'message_ids.*' => 'integer|exists:messages,id',
+            'tag_id' => 'required|exists:tags,id',
+        ]);
+
+        // Get user's accessible chat IDs for authorization
+        $userChatIds = auth()->user()->accessibleChatIds()->toArray();
+
+        // Get messages that user has access to
+        $messages = Message::whereIn('id', $request->message_ids)
+            ->whereIn('chat_id', $userChatIds)
+            ->get();
+
+        if ($messages->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No accessible messages found'
+            ], 403);
+        }
+
+        $tag = Tag::findOrFail($request->tag_id);
+        $tagged = 0;
+
+        // Batch attach tags (only attach if not already tagged)
+        foreach ($messages as $message) {
+            if (!$message->tags()->where('tags.id', $tag->id)->exists()) {
+                $message->tags()->attach($tag->id);
+                $tagged++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'tagged' => $tagged,
+            'total' => $messages->count(),
+            'message' => "Tagged {$tagged} of {$messages->count()} messages"
+        ]);
+    }
 }

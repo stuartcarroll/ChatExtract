@@ -72,6 +72,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/tags/{tag}', [TagController::class, 'update'])->name('tags.update');
     Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
     Route::post('/messages/{message}/tag', [TagController::class, 'tagMessage'])->name('messages.tag');
+    Route::post('/messages/batch-tag', [TagController::class, 'batchTag'])->name('messages.batch-tag');
 
     // Transcription routes (admin only)
     Route::get('/transcription/dashboard', [TranscriptionController::class, 'dashboard'])->name('transcription.dashboard');
