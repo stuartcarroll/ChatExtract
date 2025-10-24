@@ -64,6 +64,9 @@
                     <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
                         Clear
                     </button>
+                    <button onclick="exportSelected()" style="background-color: #ea580c; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-orange-700">
+                        ⬇ Export
+                    </button>
                     <button onclick="showQuickTag()" style="background-color: #10b981; color: white;" class="px-3 py-2 text-sm rounded-lg font-medium hover:bg-green-600">
                         Quick Tag
                     </button>
@@ -417,6 +420,56 @@
                 await applyTag(data.id, name);
             } catch (e) {
                 alert('Error creating tag');
+            }
+        }
+
+        async function exportSelected() {
+            if (selected.size === 0) {
+                alert('Please select items to export');
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const messageIds = Array.from(selected);
+
+            try {
+                // Create a form and submit it to trigger download
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('export.bulk') }}';
+                form.style.display = 'none';
+
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = token;
+                form.appendChild(csrfInput);
+
+                // Add message IDs
+                messageIds.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'message_ids[]';
+                    input.value = id;
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+
+                // Show success message
+                const count = document.getElementById('selection-count');
+                const originalText = count.textContent;
+                count.textContent = '⬇ Exporting...';
+                setTimeout(() => {
+                    count.textContent = originalText;
+                }, 2000);
+
+            } catch (e) {
+                console.error('Export failed:', e);
+                alert('Export failed. Please try again.');
             }
         }
 

@@ -15,6 +15,9 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
+                        {{ __('Chats') }}
+                    </x-nav-link>
                     <x-nav-link :href="route('search.index')" :active="request()->routeIs('search.*')">
                         {{ __('Search') }}
                     </x-nav-link>
@@ -55,7 +58,22 @@
                             {{ __('Profile') }}
                         </x-dropdown-link>
 
+                        <x-dropdown-link :href="route('two-factor.show')">
+                            {{ __('Two-Factor Auth') }}
+                        </x-dropdown-link>
+
+                        @if(auth()->user()->isAdmin())
+                            <div class="border-t border-gray-200 my-1"></div>
+                            <div class="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
+                                Admin
+                            </div>
+                            <x-dropdown-link :href="route('transcription.participants')">
+                                {{ __('Manage Participants') }}
+                            </x-dropdown-link>
+                        @endif
+
                         <!-- Authentication -->
+                        <div class="border-t border-gray-200 my-1"></div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
 
@@ -87,11 +105,17 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('chats.index')" :active="request()->routeIs('chats.*')">
+                {{ __('Chats') }}
+            </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('search.index')" :active="request()->routeIs('search.*')">
                 {{ __('Search') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('gallery.index')" :active="request()->routeIs('gallery.index')">
                 {{ __('Gallery') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('tags.index')" :active="request()->routeIs('tags.*')">
+                {{ __('Tags') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('import.dashboard')" :active="request()->routeIs('import.dashboard')">
                 {{ __('Imports') }}
@@ -115,7 +139,22 @@
                     {{ __('Profile') }}
                 </x-responsive-nav-link>
 
+                <x-responsive-nav-link :href="route('two-factor.show')">
+                    {{ __('Two-Factor Auth') }}
+                </x-responsive-nav-link>
+
+                @if(auth()->user()->isAdmin())
+                    <div class="border-t border-gray-200 my-2"></div>
+                    <div class="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
+                        Admin
+                    </div>
+                    <x-responsive-nav-link :href="route('transcription.participants')">
+                        {{ __('Manage Participants') }}
+                    </x-responsive-nav-link>
+                @endif
+
                 <!-- Authentication -->
+                <div class="border-t border-gray-200 my-2"></div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
 

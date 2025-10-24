@@ -123,6 +123,11 @@
                                 <p class="text-xs text-gray-500 mt-1 truncate" title="{{ $item->filename }}">
                                     {{ $item->filename }}
                                 </p>
+                                <a href="{{ route('media.download', $item->id) }}"
+                                   class="inline-block mt-1 text-xs text-green-600 hover:text-green-800 hover:underline"
+                                   download>
+                                    ⬇ Download
+                                </a>
 
                                 <!-- Tags Section -->
                                 @if($tags->isNotEmpty())

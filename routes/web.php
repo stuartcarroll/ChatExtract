@@ -83,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/media/{media}/transcribe', [TranscriptionController::class, 'transcribeSingle'])->name('media.transcribe');
     Route::post('/chats/{chat}/transcribe', [TranscriptionController::class, 'transcribeChat'])->name('chats.transcribe');
     Route::get('/chats/{chat}/transcription-status', [TranscriptionController::class, 'status'])->name('chats.transcription.status');
+
+    // Export and download routes
+    Route::post('/export', [App\Http\Controllers\ExportController::class, 'export'])->name('export.bulk');
+    Route::get('/media/{media}/download', [App\Http\Controllers\ExportController::class, 'downloadMedia'])->name('media.download');
 });
 
 require __DIR__.'/auth.php';

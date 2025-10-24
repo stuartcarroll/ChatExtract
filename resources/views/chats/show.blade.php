@@ -154,7 +154,14 @@
                                                                  alt="{{ $media->filename }}"
                                                                  class="max-w-xs max-h-64 rounded-lg shadow hover:opacity-90 transition">
                                                         </a>
-                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+                                                        <div class="flex items-center justify-between mt-1">
+                                                            <p class="text-xs text-gray-500">{{ $media->filename }}</p>
+                                                            <a href="{{ route('media.download', $media->id) }}"
+                                                               class="text-xs text-green-600 hover:text-green-800 hover:underline ml-2"
+                                                               download>
+                                                                ⬇ Download
+                                                            </a>
+                                                        </div>
                                                     </div>
                                                 @elseif ($media->type === 'video')
                                                     <div class="max-w-md">
@@ -162,7 +169,14 @@
                                                             <source src="{{ asset('storage/' . $media->file_path) }}" type="{{ $media->mime_type }}">
                                                             Your browser does not support the video tag.
                                                         </video>
-                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+                                                        <div class="flex items-center justify-between mt-1">
+                                                            <p class="text-xs text-gray-500">{{ $media->filename }}</p>
+                                                            <a href="{{ route('media.download', $media->id) }}"
+                                                               class="text-xs text-green-600 hover:text-green-800 hover:underline"
+                                                               download>
+                                                                ⬇ Download
+                                                            </a>
+                                                        </div>
                                                     </div>
                                                 @elseif ($media->type === 'audio')
                                                     <div class="max-w-md bg-gray-50 p-3 rounded-lg">
@@ -170,7 +184,14 @@
                                                             <source src="{{ asset('storage/' . $media->file_path) }}" type="{{ $media->mime_type }}">
                                                             Your browser does not support the audio tag.
                                                         </audio>
-                                                        <p class="text-xs text-gray-500 mt-1">{{ $media->filename }}</p>
+                                                        <div class="flex items-center justify-between mt-1">
+                                                            <p class="text-xs text-gray-500">{{ $media->filename }}</p>
+                                                            <a href="{{ route('media.download', $media->id) }}"
+                                                               class="text-xs text-green-600 hover:text-green-800 hover:underline"
+                                                               download>
+                                                                ⬇ Download
+                                                            </a>
+                                                        </div>
 
                                                         @if($media->transcription)
                                                             <!-- Show transcription -->
