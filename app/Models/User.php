@@ -23,15 +23,22 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
     ];
 
     /**
      * The attributes that are not mass assignable.
+     * SECURITY FIX: Guard critical fields to prevent privilege escalation.
      *
      * @var list<string>
      */
-    protected $guarded = ['email_verified_at'];
+    protected $guarded = [
+        'id',
+        'role',  // SECURITY FIX: Prevent privilege escalation via mass assignment
+        'email_verified_at',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+    ];
 
     /**
      * The attributes that should be hidden for serialization.

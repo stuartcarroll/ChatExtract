@@ -84,7 +84,73 @@ class ProcessChatImportJob implements ShouldQueue
                 if ($zipStatus === true) {
                     $fileCount = $zip->numFiles;
                     $progress->addLog("ZIP opened successfully, contains {$fileCount} files");
-                    $progress->addLog("Extracting {$fileCount} files...");
+
+                    // SECURITY FIX: Validate file count to prevent ZIP bombs
+                    if ($fileCount > 10000) {
+                        $zip->close();
+                        \Log::warning('ZIP bomb attempt detected - excessive file count', [
+                            'file_count' => $fileCount,
+                            'user_id' => $this->userId,
+                            'file_path' => $this->filePath,
+                        ]);
+                        throw new \Exception("ZIP file contains too many files ({$fileCount}). Maximum allowed: 10,000");
+                    }
+
+                    // SECURITY FIX: Validate uncompressed size and compression ratio
+                    $totalUncompressedSize = 0;
+                    $totalCompressedSize = 0;
+
+                    for ($i = 0; $i < $fileCount; $i++) {
+                        $stat = $zip->statIndex($i);
+
+                        if ($stat === false) {
+                            continue;
+                        }
+
+                        // SECURITY FIX: Check for path traversal in filenames
+                        if (str_contains($stat['name'], '..') || str_starts_with($stat['name'], '/')) {
+                            $zip->close();
+                            \Log::warning('ZIP path traversal attempt detected', [
+                                'filename' => $stat['name'],
+                                'user_id' => $this->userId,
+                                'file_path' => $this->filePath,
+                            ]);
+                            throw new \Exception("ZIP file contains invalid file path: {$stat['name']}");
+                        }
+
+                        $totalUncompressedSize += $stat['size'];
+                        $totalCompressedSize += $stat['comp_size'];
+
+                        // SECURITY FIX: Check max uncompressed size (1GB)
+                        if ($totalUncompressedSize > 1024 * 1024 * 1024) {
+                            $zip->close();
+                            \Log::warning('ZIP bomb attempt detected - excessive uncompressed size', [
+                                'uncompressed_size' => $totalUncompressedSize,
+                                'user_id' => $this->userId,
+                                'file_path' => $this->filePath,
+                            ]);
+                            throw new \Exception("ZIP file uncompressed size exceeds limit (1GB)");
+                        }
+                    }
+
+                    // SECURITY FIX: Check compression ratio (detect ZIP bombs)
+                    if ($totalCompressedSize > 0) {
+                        $compressionRatio = $totalUncompressedSize / $totalCompressedSize;
+                        if ($compressionRatio > 100) {
+                            $zip->close();
+                            \Log::warning('ZIP bomb attempt detected - excessive compression ratio', [
+                                'compression_ratio' => round($compressionRatio, 2),
+                                'compressed_size' => $totalCompressedSize,
+                                'uncompressed_size' => $totalUncompressedSize,
+                                'user_id' => $this->userId,
+                                'file_path' => $this->filePath,
+                            ]);
+                            throw new \Exception("ZIP file has suspicious compression ratio (" . round($compressionRatio, 2) . ":1). Maximum allowed: 100:1");
+                        }
+                    }
+
+                    $progress->addLog("ZIP validation passed - extracting {$fileCount} files...");
+                    $progress->addLog("Uncompressed size: " . round($totalUncompressedSize / 1024 / 1024, 2) . " MB");
 
                     $zip->extractTo($extractPath);
                     $zip->close();

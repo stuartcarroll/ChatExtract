@@ -57,10 +57,16 @@ class TagController extends Controller
     }
 
     /**
-     * Update the specified tag (global - any user can update).
+     * Update the specified tag (admin only).
+     * SECURITY FIX: Only admins can modify tags to prevent unauthorized changes.
      */
     public function update(Request $request, Tag $tag)
     {
+        // SECURITY FIX: Only admins can modify tags
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can modify tags.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:50|unique:tags,name,' . $tag->id,
         ]);
@@ -72,10 +78,16 @@ class TagController extends Controller
     }
 
     /**
-     * Remove the specified tag (global - any user can delete).
+     * Remove the specified tag (admin only).
+     * SECURITY FIX: Only admins can delete tags to prevent unauthorized deletion.
      */
     public function destroy(Tag $tag)
     {
+        // SECURITY FIX: Only admins can delete tags
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only administrators can delete tags.');
+        }
+
         $tag->delete();
 
         return redirect()->route('tags.index')

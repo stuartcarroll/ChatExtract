@@ -60,7 +60,7 @@ class ChunkedUploadController extends Controller
     public function uploadChunk(Request $request)
     {
         $request->validate([
-            'upload_id' => 'required|string',
+            'upload_id' => 'required|uuid',  // SECURITY FIX: Validate as UUID
             'chunk_index' => 'required|integer|min:0|max:10000',
             'chunk' => 'required|file',
         ]);
@@ -68,6 +68,17 @@ class ChunkedUploadController extends Controller
         $uploadId = $request->upload_id;
         $chunkIndex = $request->chunk_index;
         $uploadDir = storage_path('app/uploads/' . $uploadId);
+
+        // SECURITY FIX: Verify resolved path is within expected directory (defense in depth)
+        $realPath = realpath($uploadDir);
+        if (!$realPath || !str_starts_with($realPath, storage_path('app/uploads/'))) {
+            \Log::warning('Path traversal attempt detected in chunked upload', [
+                'upload_id' => $uploadId,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip(),
+            ]);
+            return response()->json(['error' => 'Invalid upload directory'], 403);
+        }
 
         // Verify upload directory exists
         if (!file_exists($uploadDir)) {
@@ -163,13 +174,24 @@ class ChunkedUploadController extends Controller
     public function finalize(Request $request)
     {
         $request->validate([
-            'upload_id' => 'required|string',
+            'upload_id' => 'required|uuid',  // SECURITY FIX: Validate as UUID
             'chat_name' => 'required|string|max:255',
             'chat_description' => 'nullable|string|max:1000',
         ]);
 
         $uploadId = $request->upload_id;
         $uploadDir = storage_path('app/uploads/' . $uploadId);
+
+        // SECURITY FIX: Verify resolved path is within expected directory
+        $realPath = realpath($uploadDir);
+        if (!$realPath || !str_starts_with($realPath, storage_path('app/uploads/'))) {
+            \Log::warning('Path traversal attempt detected in finalize', [
+                'upload_id' => $uploadId,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip(),
+            ]);
+            return response()->json(['error' => 'Invalid upload directory'], 403);
+        }
 
         // Find the progress record
         $progress = ImportProgress::where('upload_id', $uploadId)->first();
@@ -289,6 +311,16 @@ class ChunkedUploadController extends Controller
      */
     public function status($uploadId)
     {
+        // SECURITY FIX: Validate uploadId is a valid UUID
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uploadId)) {
+            \Log::warning('Invalid upload ID format in status check', [
+                'upload_id' => $uploadId,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip(),
+            ]);
+            return response()->json(['error' => 'Invalid upload ID format'], 400);
+        }
+
         $progress = ImportProgress::where('upload_id', $uploadId)->first();
 
         if (!$progress) {
