@@ -51,10 +51,18 @@
             <span class="font-medium">{{ $item->message->participant->name ?? 'Unknown' }}</span>
             <span>{{ $item->message->sent_at->format('M d, Y') }}</span>
         </div>
-        <a href="{{ route('chats.show', $item->message->chat_id) }}#message-{{ $item->message->id }}"
-           class="text-xs text-blue-600 hover:text-blue-800 hover:underline block mb-2">
-            View in Chat →
-        </a>
+
+        <div class="flex gap-2 mb-2">
+            <a href="{{ route('chats.show', $item->message->chat_id) }}#message-{{ $item->message->id }}"
+               class="text-xs text-blue-600 hover:text-blue-800 hover:underline flex-1">
+                View in Chat →
+            </a>
+            <a href="{{ route('media.download', $item->id) }}"
+               class="text-xs text-green-600 hover:text-green-800 hover:underline"
+               download>
+                ⬇ Download
+            </a>
+        </div>
 
         <!-- Tags -->
         @if($item->message->tags->count() > 0)

@@ -193,17 +193,27 @@
                                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
                                                 @foreach($message->media as $item)
                                                     @if($item->type === 'image')
-                                                        <div class="relative aspect-square bg-gray-100 rounded overflow-hidden">
+                                                        <div class="relative aspect-square bg-gray-100 rounded overflow-hidden group">
                                                             <img src="{{ asset('storage/' . $item->file_path) }}"
-                                                                 class="w-full h-full object-cover"
+                                                                 class="w-full h-full object-cover cursor-pointer"
                                                                  loading="lazy"
                                                                  onclick="window.open(this.src, '_blank')">
+                                                            <a href="{{ route('media.download', $item->id) }}"
+                                                               class="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-gray-700 text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition"
+                                                               download>
+                                                                ⬇
+                                                            </a>
                                                         </div>
                                                     @elseif($item->type === 'video')
-                                                        <div class="relative aspect-square bg-gray-900 rounded overflow-hidden">
+                                                        <div class="relative aspect-square bg-gray-900 rounded overflow-hidden group">
                                                             <video class="w-full h-full object-cover" controls preload="metadata">
                                                                 <source src="{{ asset('storage/' . $item->file_path) }}">
                                                             </video>
+                                                            <a href="{{ route('media.download', $item->id) }}"
+                                                               class="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-gray-700 text-xs px-2 py-1 rounded shadow"
+                                                               download>
+                                                                ⬇
+                                                            </a>
                                                         </div>
                                                     @elseif($item->type === 'audio')
                                                         <div class="col-span-2 bg-gradient-to-br from-purple-50 to-blue-50 p-3 rounded">
@@ -212,6 +222,11 @@
                                                                     <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z"/>
                                                                 </svg>
                                                                 <span class="text-xs text-gray-600">Audio</span>
+                                                                <a href="{{ route('media.download', $item->id) }}"
+                                                                   class="ml-auto text-xs text-green-600 hover:text-green-800 hover:underline"
+                                                                   download>
+                                                                    ⬇ Download
+                                                                </a>
                                                             </div>
                                                             @if(!empty($item->transcription))
                                                                 <div class="mb-2 p-2 bg-white/80 rounded">
