@@ -4,7 +4,6 @@
 /public/build
 /public/hot
 /public/storage
-/docs
 /test-plan
 /code-review
 /storage/*.key
