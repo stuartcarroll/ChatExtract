@@ -68,3 +68,14 @@ backup*/
 
 # Local environment configs
 .env.local
+
+# Development and local server files
+.user.ini
+start-dev.sh
+import-db.sh
+*.sqlite
+*.db
+
+# Local scripts (keep examples, ignore actual)
+scripts/*-local.sh
+scripts/import-*.sh

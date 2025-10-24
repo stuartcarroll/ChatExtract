@@ -1,0 +1,39 @@
+#!/bin/bash
+# Development server startup script
+# Copy this to start-dev.sh and update with your local credentials
+
+# IMPORTANT: Copy this file to the project root as start-dev.sh
+# cp scripts/start-dev.sh.example start-dev.sh
+# chmod +x start-dev.sh
+# Then edit start-dev.sh with your local database credentials
+
+# Set environment variables for MySQL (update these for your local environment)
+export DB_CONNECTION=mysql
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_DATABASE=your_database_name
+export DB_USERNAME=your_database_user
+export DB_PASSWORD=your_database_password
+
+# Set Scout to use database driver (not Meilisearch)
+export SCOUT_DRIVER=database
+
+# Load APP_KEY from .env
+export APP_KEY=$(grep "^APP_KEY=" .env | cut -d'=' -f2-)
+
+# Start queue worker in background for all queues (default, transcriptions, indexing)
+php artisan queue:work --queue=default,transcriptions,indexing --sleep=3 --tries=3 --max-time=3600 &
+QUEUE_PID=$!
+echo "Queue worker started with PID: $QUEUE_PID (processing: default, transcriptions, indexing queues)"
+
+# Function to cleanup on exit
+cleanup() {
+    echo "Stopping queue worker..."
+    kill $QUEUE_PID 2>/dev/null
+    exit
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Start Laravel development server (foreground)
+php artisan serve --host=0.0.0.0 --port=8000

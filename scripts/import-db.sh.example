@@ -1,0 +1,79 @@
+#!/bin/bash
+# Import production database to dev environment
+# Copy this to import-db.sh and update with your local credentials
+
+# IMPORTANT: Copy this file as import-db.sh and update credentials
+# cp scripts/import-db.sh.example import-db.sh
+# chmod +x import-db.sh
+# Then edit import-db.sh with your local database credentials
+
+set -e
+
+# Check if file was provided
+if [ -z "$1" ]; then
+    echo "Usage: ./import-db.sh <path-to-sql-dump.sql.gz>"
+    echo ""
+    echo "Available dumps:"
+    ls -lh *.sql.gz 2>/dev/null || echo "  No .sql.gz files found in current directory"
+    exit 1
+fi
+
+DUMP_FILE="$1"
+
+if [ ! -f "$DUMP_FILE" ]; then
+    echo "Error: File not found: $DUMP_FILE"
+    exit 1
+fi
+
+echo "🗄️  Importing production database..."
+echo "File: $DUMP_FILE"
+echo ""
+
+# Database credentials - UPDATE THESE FOR YOUR LOCAL ENVIRONMENT
+DB_HOST="127.0.0.1"
+DB_PORT="3306"
+DB_DATABASE="your_database_name"
+DB_USERNAME="your_database_user"
+DB_PASSWORD="your_database_password"
+
+# Drop and recreate database
+echo "📋 Recreating database..."
+mysql -u root << EOF
+DROP DATABASE IF EXISTS $DB_DATABASE;
+CREATE DATABASE $DB_DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+echo "✓ Database recreated"
+echo ""
+
+# Import the dump
+echo "📥 Importing data..."
+if [[ "$DUMP_FILE" == *.gz ]]; then
+    gunzip -c "$DUMP_FILE" | mysql -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE"
+else
+    mysql -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" < "$DUMP_FILE"
+fi
+
+echo "✓ Data imported"
+echo ""
+
+# Get some stats
+echo "📊 Import statistics:"
+export DB_CONNECTION=mysql DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_DATABASE=$DB_DATABASE DB_USERNAME=$DB_USERNAME DB_PASSWORD=$DB_PASSWORD
+
+php artisan tinker --execute="
+echo 'Users: ' . \App\Models\User::count() . PHP_EOL;
+echo 'Chats: ' . \App\Models\Chat::count() . PHP_EOL;
+echo 'Messages: ' . \App\Models\Message::count() . PHP_EOL;
+echo 'Media: ' . \App\Models\Media::count() . PHP_EOL;
+echo 'Tags: ' . \App\Models\Tag::count() . PHP_EOL;
+"
+
+echo ""
+echo "✅ Import complete!"
+echo ""
+echo "Note: You'll need to restart the dev server for changes to take effect:"
+echo "  killall php"
+echo "  ./start-dev.sh"
