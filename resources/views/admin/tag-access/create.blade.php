@@ -48,7 +48,7 @@
 
                         <div class="mb-4" x-show="type === 'user'">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Select User</label>
-                            <select name="accessable_id" class="shadow border rounded w-full py-2 px-3">
+                            <select :name="type === 'user' ? 'accessable_id' : ''" class="shadow border rounded w-full py-2 px-3">
                                 <option value="">Select a user</option>
                                 @foreach($users as $user)
                                     <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }}) - {{ ucfirst(str_replace('_', ' ', $user->role)) }}</option>
@@ -59,7 +59,7 @@
 
                         <div class="mb-4" x-show="type === 'group'">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Select Group</label>
-                            <select name="accessable_id" class="shadow border rounded w-full py-2 px-3">
+                            <select :name="type === 'group' ? 'accessable_id' : ''" class="shadow border rounded w-full py-2 px-3">
                                 <option value="">Select a group</option>
                                 @foreach($groups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
