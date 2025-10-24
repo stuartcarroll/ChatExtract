@@ -59,6 +59,15 @@
                                             <a href="{{ route('search.index', ['tag_id' => $tag->id]) }}" class="text-sm text-blue-600 hover:text-blue-800 hover:underline">
                                                 View Messages
                                             </a>
+                                            <form action="{{ route('tags.export', $tag) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" class="text-sm text-green-600 hover:text-green-800 hover:underline flex items-center gap-1">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                                                    </svg>
+                                                    Export All
+                                                </button>
+                                            </form>
                                         @endif
                                     </div>
 

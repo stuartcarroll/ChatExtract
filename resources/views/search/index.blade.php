@@ -141,6 +141,26 @@
                 </div>
             </div>
 
+            <!-- Selection Bar (Fixed when items selected) -->
+            <div id="selection-bar" style="display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 40; background-color: #2563eb; color: white; padding: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" class="items-center justify-between">
+                <div class="max-w-5xl mx-auto px-4 flex items-center justify-between">
+                    <span class="text-sm font-semibold">
+                        <span id="selection-count">0</span> selected
+                    </span>
+                    <div class="flex gap-2">
+                        <button onclick="selectAll()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
+                            Select All
+                        </button>
+                        <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
+                            Clear
+                        </button>
+                        <button onclick="exportSelected()" style="background-color: #ea580c; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-orange-700">
+                            ⬇ Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Search Results -->
             @if (isset($results))
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -162,9 +182,16 @@
 
                             <div class="space-y-4">
                                 @foreach ($results as $message)
-                                    <div class="border-l-4 {{ $message->is_story ? 'border-purple-500' : 'border-gray-300' }} bg-gray-50 p-4 rounded-r-lg hover:bg-gray-100 transition">
+                                    <div class="border-l-4 {{ $message->is_story ? 'border-purple-500' : 'border-gray-300' }} bg-gray-50 p-4 rounded-r-lg hover:bg-gray-100 transition relative">
+                                        <!-- Selection Checkbox -->
+                                        <label class="absolute top-4 right-4 cursor-pointer">
+                                            <input type="checkbox" class="message-checkbox w-5 h-5 rounded cursor-pointer"
+                                                   value="{{ $message->id }}"
+                                                   onchange="toggleSelection({{ $message->id }}, this)">
+                                        </label>
+
                                         <!-- Message Header -->
-                                        <div class="flex justify-between items-start mb-2">
+                                        <div class="flex justify-between items-start mb-2 pr-8">
                                             <div>
                                                 <span class="font-semibold text-gray-900">{{ $message->participant->name ?? 'Unknown' }}</span>
                                                 <span class="text-sm text-gray-500 ml-2">in {{ $message->chat->name }}</span>
@@ -321,4 +348,91 @@
             @endif
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        let selected = new Set();
+
+        function toggleSelection(id, checkbox) {
+            if (checkbox.checked) {
+                selected.add(id);
+            } else {
+                selected.delete(id);
+            }
+            updateSelectionBar();
+        }
+
+        function updateSelectionBar() {
+            const bar = document.getElementById('selection-bar');
+            const count = document.getElementById('selection-count');
+            count.textContent = selected.size;
+            bar.style.display = selected.size > 0 ? 'flex' : 'none';
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.message-checkbox').forEach(cb => {
+                cb.checked = true;
+                const messageId = parseInt(cb.value);
+                selected.add(messageId);
+            });
+            updateSelectionBar();
+        }
+
+        function clearSelection() {
+            selected.clear();
+            document.querySelectorAll('.message-checkbox').forEach(cb => cb.checked = false);
+            updateSelectionBar();
+        }
+
+        async function exportSelected() {
+            if (selected.size === 0) {
+                alert('Please select messages to export');
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const messageIds = Array.from(selected);
+
+            try {
+                // Create a form and submit it to trigger download
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('export.bulk') }}';
+                form.style.display = 'none';
+
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = token;
+                form.appendChild(csrfInput);
+
+                // Add message IDs
+                messageIds.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'message_ids[]';
+                    input.value = id;
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+
+                // Show success message
+                const count = document.getElementById('selection-count');
+                const originalText = count.textContent;
+                count.textContent = '⬇ Exporting...';
+                setTimeout(() => {
+                    count.textContent = originalText;
+                }, 2000);
+
+            } catch (e) {
+                console.error('Export failed:', e);
+                alert('Export failed. Please try again.');
+            }
+        }
+    </script>
+    @endpush
 </x-app-layout>

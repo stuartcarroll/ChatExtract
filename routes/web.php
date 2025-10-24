@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
 
     // Tag routes
     Route::get('/tags', [TagController::class, 'index'])->name('tags.index');
+    Route::post('/tags/{tag}/export', [TagController::class, 'export'])->name('tags.export');
 
     // Tag creation/modification (chat_user and admin only, NOT view_only)
     Route::middleware('chat_user')->group(function() {

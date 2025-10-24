@@ -61,6 +61,9 @@
                     <span id="selection-count">0</span> selected
                 </span>
                 <div class="flex gap-2">
+                    <button onclick="selectAll()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
+                        Select All
+                    </button>
                     <button onclick="clearSelection()" style="background-color: rgba(255,255,255,0.2); color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-white/30">
                         Clear
                     </button>
@@ -236,6 +239,15 @@
             count.textContent = selected.size;
 
             bar.style.display = selected.size > 0 ? 'flex' : 'none';
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = true;
+                const messageId = parseInt(cb.getAttribute('onchange').match(/\d+/)[0]);
+                selected.add(messageId);
+            });
+            updateSelectionBar();
         }
 
         function clearSelection() {
