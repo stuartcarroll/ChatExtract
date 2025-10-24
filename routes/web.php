@@ -65,8 +65,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/upload/{uploadId}/status', [App\Http\Controllers\ChunkedUploadController::class, 'status'])->name('upload.status');
 
     // Search routes
-    Route::get('/search', [SearchController::class, 'index'])->name('search.index');
-    Route::post('/search', [SearchController::class, 'search'])->name('search.perform');
+    Route::get('/search', [SearchController::class, 'search'])->name('search.index');
     Route::post('/search/advanced', [SearchController::class, 'advanced'])->name('search.advanced');
 
     // Tag routes

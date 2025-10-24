@@ -10,9 +10,9 @@ use Illuminate\Http\Request;
 class SearchController extends Controller
 {
     /**
-     * Display the search interface.
+     * Display the search interface and perform search if parameters provided.
      */
-    public function index(Request $request)
+    public function search(Request $request)
     {
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
@@ -34,24 +34,9 @@ class SearchController extends Controller
             $query->whereIn('chat_id', $userChatIds);
         })->orderBy('name')->get(['id', 'name']);
 
-        // If tag_id is provided in query params, auto-search
-        $results = null;
-        $selectedTagId = $request->query('tag_id');
-        if ($selectedTagId) {
-            // Perform search with just the tag filter using the original request
-            $results = $this->performSearch($request);
-        }
-
-        return view('search.index', compact('chats', 'tags', 'participants', 'results', 'selectedTagId'));
-    }
-
-    /**
-     * Perform the search.
-     */
-    public function search(Request $request)
-    {
-        // Check if any filter is provided
-        $hasFilters = $request->filled('chat_id')
+        // Check if any search parameters are provided
+        $hasSearchParams = $request->filled('query')
+            || $request->filled('chat_id')
             || $request->filled('date_from')
             || $request->filled('date_to')
             || $request->filled('participant_id')
@@ -59,41 +44,34 @@ class SearchController extends Controller
             || $request->filled('tag_id')
             || $request->filled('only_stories');
 
-        // Validate the request - query required only if no filters
-        $request->validate([
-            'query' => ($hasFilters ? 'nullable' : 'required') . '|string|max:255',
-            'chat_id' => 'nullable|exists:chats,id',
-            'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date',
-            'participant_id' => 'nullable|exists:participants,id',
-            'media_type' => 'nullable|in:has_media,no_media,image,video,audio',
-            'tag_id' => 'nullable|exists:tags,id',
-            'only_stories' => 'nullable|boolean',
-        ]);
-
-        $results = $this->performSearch($request);
-
-        // Get user's accessible chats for filter dropdown
-        $chats = auth()->user()->accessibleChats()->get();
-
-        // Get tags based on user role
-        // - Admin and chat_user: all tags
-        // - View-only: only tags they have access to
-        $user = auth()->user();
-        if ($user->isViewOnly()) {
-            $accessibleTagIds = $user->accessibleTagIds();
-            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
-        } else {
-            $tags = Tag::orderBy('name')->get();
-        }
-
-        // Get all unique participants from user's accessible chats
-        $participants = \App\Models\Participant::whereHas('messages', function ($query) {
-            $userChatIds = auth()->user()->accessibleChatIds()->toArray();
-            $query->whereIn('chat_id', $userChatIds);
-        })->orderBy('name')->get(['id', 'name']);
-
+        $results = null;
         $selectedTagId = $request->input('tag_id');
+
+        // Only perform search if parameters are provided
+        if ($hasSearchParams) {
+            // Check if any filter is provided
+            $hasFilters = $request->filled('chat_id')
+                || $request->filled('date_from')
+                || $request->filled('date_to')
+                || $request->filled('participant_id')
+                || $request->filled('media_type')
+                || $request->filled('tag_id')
+                || $request->filled('only_stories');
+
+            // Validate the request - query required only if no filters
+            $request->validate([
+                'query' => ($hasFilters ? 'nullable' : 'required') . '|string|max:255',
+                'chat_id' => 'nullable|exists:chats,id',
+                'date_from' => 'nullable|date',
+                'date_to' => 'nullable|date',
+                'participant_id' => 'nullable|exists:participants,id',
+                'media_type' => 'nullable|in:has_media,no_media,image,video,audio',
+                'tag_id' => 'nullable|exists:tags,id',
+                'only_stories' => 'nullable|boolean',
+            ]);
+
+            $results = $this->performSearch($request);
+        }
 
         return view('search.index', compact('results', 'chats', 'tags', 'participants', 'selectedTagId'));
     }

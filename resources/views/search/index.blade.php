@@ -10,8 +10,7 @@
             <!-- Simple Search -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
-                    <form action="{{ route('search.perform') }}" method="POST" class="space-y-4">
-                        @csrf
+                    <form action="{{ route('search.index') }}" method="GET" class="space-y-4">
 
                         <!-- Main Search Input -->
                         <div>
