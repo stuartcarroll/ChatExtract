@@ -11,57 +11,53 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add indexes to media table (only if they don't exist)
-        if (!$this->indexExists('media', 'media_transcription_requested_index')) {
+        // Add indexes - wrap in try/catch for duplicate index errors
+        try {
             Schema::table('media', function (Blueprint $table) {
-                $table->index('transcription_requested');
+                $table->index(['type', 'message_id'], 'media_type_message_id_index');
             });
-        }
-        if (!$this->indexExists('media', 'media_type_message_id_index')) {
-            Schema::table('media', function (Blueprint $table) {
-                $table->index(['type', 'message_id']);
-            });
+        } catch (\Exception $e) {
+            // Index already exists, skip
         }
 
-        // Add indexes to import_progress table (only if they don't exist)
-        if (!$this->indexExists('import_progress', 'import_progress_user_id_index')) {
+        try {
             Schema::table('import_progress', function (Blueprint $table) {
-                $table->index('user_id');
+                $table->index('user_id', 'import_progress_user_id_index');
             });
-        }
-        if (!$this->indexExists('import_progress', 'import_progress_status_index')) {
-            Schema::table('import_progress', function (Blueprint $table) {
-                $table->index('status');
-            });
-        }
-        if (!$this->indexExists('import_progress', 'import_progress_user_id_status_index')) {
-            Schema::table('import_progress', function (Blueprint $table) {
-                $table->index(['user_id', 'status']);
-            });
+        } catch (\Exception $e) {
+            // Index already exists, skip
         }
 
-        // Add indexes to chat_access table (only if they don't exist)
-        if (!$this->indexExists('chat_access', 'chat_access_accessable_type_accessable_id_index')) {
-            Schema::table('chat_access', function (Blueprint $table) {
-                $table->index(['accessable_type', 'accessable_id']);
+        try {
+            Schema::table('import_progress', function (Blueprint $table) {
+                $table->index('status', 'import_progress_status_index');
             });
-        }
-        if (!$this->indexExists('chat_access', 'chat_access_chat_id_index')) {
-            Schema::table('chat_access', function (Blueprint $table) {
-                $table->index('chat_id');
-            });
+        } catch (\Exception $e) {
+            // Index already exists, skip
         }
 
-        // Add indexes to messages table (only if they don't exist)
-        if (!$this->indexExists('messages', 'messages_chat_id_sent_at_index')) {
+        try {
+            Schema::table('import_progress', function (Blueprint $table) {
+                $table->index(['user_id', 'status'], 'import_progress_user_id_status_index');
+            });
+        } catch (\Exception $e) {
+            // Index already exists, skip
+        }
+
+        try {
             Schema::table('messages', function (Blueprint $table) {
-                $table->index(['chat_id', 'sent_at']);
+                $table->index(['chat_id', 'sent_at'], 'messages_chat_id_sent_at_index');
             });
+        } catch (\Exception $e) {
+            // Index already exists, skip
         }
-        if (!$this->indexExists('messages', 'messages_participant_id_index')) {
+
+        try {
             Schema::table('messages', function (Blueprint $table) {
-                $table->index('participant_id');
+                $table->index('participant_id', 'messages_participant_id_index');
             });
+        } catch (\Exception $e) {
+            // Index already exists, skip
         }
     }
 
@@ -71,15 +67,21 @@ return new class extends Migration
     protected function indexExists(string $table, string $index): bool
     {
         $connection = Schema::getConnection();
-        $databaseName = $connection->getDatabaseName();
+        $driver = $connection->getDriverName();
 
-        $result = $connection->select(
-            "SELECT COUNT(*) as count FROM information_schema.statistics
-             WHERE table_schema = ? AND table_name = ? AND index_name = ?",
-            [$databaseName, $table, $index]
-        );
+        if ($driver === 'mysql') {
+            $databaseName = $connection->getDatabaseName();
+            $result = $connection->select(
+                "SELECT COUNT(*) as count FROM information_schema.statistics
+                 WHERE table_schema = ? AND table_name = ? AND index_name = ?",
+                [$databaseName, $table, $index]
+            );
+            return $result[0]->count > 0;
+        }
 
-        return $result[0]->count > 0;
+        // For other drivers (like SQLite), just try to create the index
+        // Laravel will handle duplicate index creation gracefully
+        return false;
     }
 
     /**

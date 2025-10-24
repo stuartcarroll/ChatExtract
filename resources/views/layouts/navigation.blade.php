@@ -67,6 +67,18 @@
                             <div class="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
                                 Admin
                             </div>
+                            <x-dropdown-link :href="route('admin.users.index')">
+                                {{ __('Manage Users') }}
+                            </x-dropdown-link>
+                            <x-dropdown-link :href="route('admin.groups.index')">
+                                {{ __('Manage Groups') }}
+                            </x-dropdown-link>
+                            <x-dropdown-link :href="route('admin.chat-access.index')">
+                                {{ __('Chat Access') }}
+                            </x-dropdown-link>
+                            <x-dropdown-link :href="route('admin.tag-access.index')">
+                                {{ __('Tag Access') }}
+                            </x-dropdown-link>
                             <x-dropdown-link :href="route('transcription.participants')">
                                 {{ __('Manage Participants') }}
                             </x-dropdown-link>
@@ -148,6 +160,18 @@
                     <div class="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
                         Admin
                     </div>
+                    <x-responsive-nav-link :href="route('admin.users.index')">
+                        {{ __('Manage Users') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.groups.index')">
+                        {{ __('Manage Groups') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.chat-access.index')">
+                        {{ __('Chat Access') }}
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.tag-access.index')">
+                        {{ __('Tag Access') }}
+                    </x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('transcription.participants')">
                         {{ __('Manage Participants') }}
                     </x-responsive-nav-link>

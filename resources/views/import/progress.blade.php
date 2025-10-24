@@ -87,7 +87,7 @@
 
                     <!-- Actions -->
                     <div class="flex gap-2">
-                        @if(in_array($progress->status, ['uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media']))
+                        @if(in_array($progress->status, ['pending', 'uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media']))
                             <form action="{{ route('import.cancel', $progress) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this import? This cannot be undone.');">
                                 @csrf
                                 <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
@@ -101,6 +101,16 @@
                                 @csrf
                                 <button type="submit" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded text-lg px-6 py-3">
                                     🔄 Retry Import
+                                </button>
+                            </form>
+                        @endif
+
+                        @if(in_array($progress->status, ['cancelled', 'failed', 'completed']))
+                            <form action="{{ route('import.deleteFiles', $progress) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete all files for this import? This cannot be undone.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                                    Delete Files
                                 </button>
                             </form>
                         @endif
@@ -135,8 +145,9 @@
                             </div>
                         </div>
                         @if($progress->total_messages > 0 && $progress->processed_messages > 0)
-                        <div class="text-xs text-gray-500 mt-1" id="messages-rate">
-                            <!-- Rate will be calculated by JS -->
+                        <div class="text-xs text-gray-500 mt-1 space-y-1">
+                            <div id="messages-rate"><!-- Rate will be calculated by JS --></div>
+                            <div id="messages-eta" class="font-semibold text-blue-600"><!-- ETA will be calculated by JS --></div>
                         </div>
                         @endif
                     </div>
@@ -157,8 +168,9 @@
                             </div>
                         </div>
                         @if($progress->processed_media > 0)
-                        <div class="text-xs text-gray-500 mt-1" id="media-rate">
-                            <!-- Rate will be calculated by JS -->
+                        <div class="text-xs text-gray-500 mt-1 space-y-1">
+                            <div id="media-rate"><!-- Rate will be calculated by JS --></div>
+                            <div id="media-eta" class="font-semibold text-purple-600"><!-- ETA will be calculated by JS --></div>
                         </div>
                         @endif
                     </div>
@@ -273,16 +285,31 @@
 
                     if (messagesCount) {
                         const currentMessages = parseInt(messagesCount.textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+                        const totalMessages = parseInt(messagesCount.textContent.match(/[\d,]+/g)[1].replace(/,/g, ''));
                         const messagesDiff = currentMessages - previousMessagesProcessed;
                         const messagesPerSecond = messagesDiff / timeDiff;
 
                         document.getElementById('messages-count').innerHTML = messagesCount.innerHTML;
 
-                        // Update rate display
-                        if (messagesDiff > 0) {
+                        // Update rate display and ETA
+                        if (messagesDiff > 0 && messagesPerSecond > 0) {
                             const rateEl = document.getElementById('messages-rate');
                             if (rateEl) {
                                 rateEl.textContent = `Processing ~${Math.round(messagesPerSecond * 60)} messages/min`;
+                            }
+
+                            // Calculate ETA
+                            const remainingMessages = totalMessages - currentMessages;
+                            const secondsRemaining = remainingMessages / messagesPerSecond;
+                            const etaEl = document.getElementById('messages-eta');
+                            if (etaEl && remainingMessages > 0) {
+                                const minutes = Math.floor(secondsRemaining / 60);
+                                const seconds = Math.floor(secondsRemaining % 60);
+                                if (minutes > 0) {
+                                    etaEl.textContent = `⏱ ETA: ~${minutes}m ${seconds}s remaining`;
+                                } else {
+                                    etaEl.textContent = `⏱ ETA: ~${seconds}s remaining`;
+                                }
                             }
                         }
 
@@ -291,15 +318,30 @@
 
                     if (mediaCount) {
                         const currentMedia = parseInt(mediaCount.textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+                        const totalMedia = parseInt(mediaCount.textContent.match(/[\d,]+/g)[1].replace(/,/g, ''));
                         const mediaDiff = currentMedia - previousMediaProcessed;
                         const mediaPerSecond = mediaDiff / timeDiff;
 
                         document.getElementById('media-count').innerHTML = mediaCount.innerHTML;
 
-                        if (mediaDiff > 0) {
+                        if (mediaDiff > 0 && mediaPerSecond > 0) {
                             const rateEl = document.getElementById('media-rate');
                             if (rateEl) {
                                 rateEl.textContent = `Processing ~${Math.round(mediaPerSecond * 60)} files/min`;
+                            }
+
+                            // Calculate ETA for media
+                            const remainingMedia = totalMedia - currentMedia;
+                            const secondsRemaining = remainingMedia / mediaPerSecond;
+                            const etaEl = document.getElementById('media-eta');
+                            if (etaEl && remainingMedia > 0) {
+                                const minutes = Math.floor(secondsRemaining / 60);
+                                const seconds = Math.floor(secondsRemaining % 60);
+                                if (minutes > 0) {
+                                    etaEl.textContent = `⏱ ETA: ~${minutes}m ${seconds}s remaining`;
+                                } else {
+                                    etaEl.textContent = `⏱ ETA: ~${seconds}s remaining`;
+                                }
                             }
                         }
 

@@ -62,11 +62,12 @@ class Message extends Model
         return [
             'id' => $this->id,
             'content' => trim($this->content . ' ' . $transcriptions),
-            'sent_at' => $this->sent_at->timestamp,
+            'sent_at' => $this->sent_at?->timestamp ?? 0,
             'is_story' => $this->is_story,
             'is_system_message' => $this->is_system_message,
             'chat_id' => $this->chat_id,
-            'participant_name' => $this->participant?->name,
+            // Note: participant_name removed - not a database column
+            // Use participant_id filter in search form to filter by participant
         ];
     }
 

@@ -24,7 +24,13 @@ class GalleryController extends Controller
         $chatIds = auth()->user()->accessibleChats()->pluck('id')->toArray();
 
         if (empty($chatIds)) {
-            $media = collect();
+            // Return empty paginated result instead of collection
+            $media = new \Illuminate\Pagination\LengthAwarePaginator(
+                [], // empty items
+                0,  // total
+                50, // per page
+                1   // current page
+            );
             $participants = collect();
             $counts = ['all' => 0, 'image' => 0, 'video' => 0, 'audio' => 0];
         } else {
@@ -110,8 +116,16 @@ class GalleryController extends Controller
                 ->unique('name');
         }
 
-        // Get all tags for tagging interface (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         // If AJAX request, return JSON for infinite scroll
         if ($request->ajax() || $request->wantsJson()) {

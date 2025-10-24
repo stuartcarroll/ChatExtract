@@ -17,8 +17,16 @@ class SearchController extends Controller
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
 
-        // Get all tags for filter dropdown (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
@@ -68,8 +76,16 @@ class SearchController extends Controller
         // Get user's accessible chats for filter dropdown
         $chats = auth()->user()->accessibleChats()->get();
 
-        // Get all tags for filter dropdown (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         // Get all unique participants from user's accessible chats
         $participants = \App\Models\Participant::whereHas('messages', function ($query) {
@@ -200,9 +216,16 @@ class SearchController extends Controller
             );
         } else {
             // Use database pagination for better performance
-            $results = $query->with(['chat', 'participant', 'media', 'tags'])
-                             ->orderBy('sent_at', 'desc')
-                             ->paginate(50);
+            if ($useScout) {
+                // Scout queries need to get results first, then load relationships
+                $results = $query->paginate(50);
+                $results->load(['chat', 'participant', 'media', 'tags']);
+            } else {
+                // Regular query builder can use with() for eager loading
+                $results = $query->with(['chat', 'participant', 'media', 'tags'])
+                                 ->orderBy('sent_at', 'desc')
+                                 ->paginate(50);
+            }
         }
 
         return $results;

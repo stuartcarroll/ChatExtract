@@ -136,7 +136,20 @@ class ImportController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        return view('chats.import-dashboard', compact('imports'));
+        // Check if queue worker is running
+        $queueWorkerRunning = $this->isQueueWorkerRunning();
+        $pendingJobsCount = \DB::table('jobs')->count();
+
+        return view('chats.import-dashboard', compact('imports', 'queueWorkerRunning', 'pendingJobsCount'));
+    }
+
+    /**
+     * Check if queue worker is running.
+     */
+    protected function isQueueWorkerRunning(): bool
+    {
+        $output = shell_exec('ps aux | grep "queue:work" | grep -v grep');
+        return !empty($output);
     }
 
     /**
@@ -503,7 +516,7 @@ class ImportController extends Controller
         }
 
         // Can only cancel imports that are in progress
-        $cancellableStatuses = ['uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media'];
+        $cancellableStatuses = ['pending', 'uploading', 'processing', 'parsing', 'extracting', 'creating_chat', 'importing_messages', 'processing_media'];
 
         if (!in_array($progress->status, $cancellableStatuses)) {
             return back()->withErrors(['error' => 'This import cannot be cancelled. It may have already completed or failed.']);
@@ -526,6 +539,63 @@ class ImportController extends Controller
 
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error cancelling import: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete all files associated with an import.
+     */
+    public function deleteFiles(ImportProgress $progress)
+    {
+        // Authorize the user
+        if ($progress->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        try {
+            $deletedItems = [];
+
+            // Delete the uploaded file if it exists
+            if ($progress->file_path && Storage::disk('local')->exists($progress->file_path)) {
+                Storage::disk('local')->delete($progress->file_path);
+                $deletedItems[] = 'uploaded file';
+            }
+
+            // Delete chunked upload directory if it exists
+            if ($progress->upload_id) {
+                $uploadDir = storage_path('app/uploads/' . $progress->upload_id);
+                if (file_exists($uploadDir)) {
+                    $this->deleteDirectory($uploadDir);
+                    $deletedItems[] = 'upload chunks';
+                }
+            }
+
+            // Delete extracted files directory if exists (for ZIP imports)
+            if ($progress->is_zip && $progress->file_path) {
+                $extractDir = storage_path('app/imports/extracted_' . $progress->id);
+                if (file_exists($extractDir)) {
+                    $this->deleteDirectory($extractDir);
+                    $deletedItems[] = 'extracted files';
+                }
+            }
+
+            // Delete import-specific directory if exists
+            $importDir = storage_path('app/imports/import_' . $progress->id);
+            if (file_exists($importDir)) {
+                $this->deleteDirectory($importDir);
+                $deletedItems[] = 'import directory';
+            }
+
+            $progress->addLog("Files deleted by user: " . implode(', ', $deletedItems));
+
+            $message = empty($deletedItems)
+                ? 'No files found to delete.'
+                : 'Successfully deleted: ' . implode(', ', $deletedItems) . '.';
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error deleting files: ' . $e->getMessage()]);
         }
     }
 }

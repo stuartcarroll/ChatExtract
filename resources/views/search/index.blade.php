@@ -115,14 +115,6 @@
                                     </select>
                                 </div>
                                 @endif
-
-                                <!-- Stories Only -->
-                                <div class="flex items-center">
-                                    <label class="flex items-center cursor-pointer">
-                                        <input type="checkbox" name="only_stories" value="1" {{ request('only_stories') ? 'checked' : '' }} class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2 text-sm text-gray-700">Stories only</span>
-                                    </label>
-                                </div>
                             </div>
                         </div>
 
@@ -181,7 +173,7 @@
                                                 @if ($message->is_story)
                                                     <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Story</span>
                                                 @endif
-                                                <span class="text-xs text-gray-500">{{ $message->sent_at->format('M d, Y H:i') }}</span>
+                                                <span class="text-xs text-gray-500">{{ $message->sent_at?->format('M d, Y H:i') ?? 'No date' }}</span>
                                             </div>
                                         </div>
 

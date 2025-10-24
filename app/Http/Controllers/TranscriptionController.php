@@ -204,10 +204,25 @@ class TranscriptionController extends Controller
             })
             ->with(['messages.media' => function ($query) {
                 $query->where('type', 'audio');
-            }])
+            }, 'messages.participant'])
             ->get()
             ->map(function ($chat) {
                 $audioFiles = $chat->messages->pluck('media')->flatten()->where('type', 'audio');
+
+                // Get detailed message list
+                $recentTranscriptions = $chat->messages
+                    ->filter(function($message) {
+                        return $message->media->where('type', 'audio')->whereNotNull('transcription')->isNotEmpty();
+                    })
+                    ->map(function($message) {
+                        return [
+                            'id' => $message->id,
+                            'participant' => $message->participant?->name ?? 'Unknown',
+                            'sent_at' => $message->sent_at->format('M d, Y H:i'),
+                            'transcribed_at' => $message->media->where('type', 'audio')->whereNotNull('transcription')->first()?->updated_at?->format('M d, Y H:i'),
+                        ];
+                    })
+                    ->take(5);
 
                 return [
                     'id' => $chat->id,
@@ -215,6 +230,7 @@ class TranscriptionController extends Controller
                     'transcribed' => $audioFiles->whereNotNull('transcription')->count(),
                     'pending' => $audioFiles->where('transcription_requested', true)->whereNull('transcription')->count(),
                     'not_started' => $audioFiles->whereNull('transcription_requested')->count(),
+                    'recent_transcriptions' => $recentTranscriptions,
                 ];
             });
 

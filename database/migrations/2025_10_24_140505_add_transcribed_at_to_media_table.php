@@ -6,18 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::table('media', function (Blueprint $table) {
-            $table->timestamp('deleted_at')->nullable();
-            $table->string('deleted_reason')->nullable();
+            $table->timestamp('transcribed_at')->nullable()->after('transcription');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::table('media', function (Blueprint $table) {
-            $table->dropColumn(['deleted_at', 'deleted_reason']);
+            $table->dropColumn('transcribed_at');
         });
     }
 };

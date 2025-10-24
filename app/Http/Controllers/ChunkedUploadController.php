@@ -197,13 +197,14 @@ class ChunkedUploadController extends Controller
             }
 
             // Combine chunks into final file
-            $finalPath = 'imports/' . $progress->filename;
+            // Use unique directory for each import to allow re-importing same file
+            $finalPath = 'imports/import_' . $progress->id . '/' . $progress->filename;
             $finalFullPath = storage_path('app/' . $finalPath);
 
-            // Ensure imports directory exists
-            $importsDir = storage_path('app/imports');
-            if (!file_exists($importsDir)) {
-                mkdir($importsDir, 0755, true);
+            // Ensure import-specific directory exists
+            $importDir = storage_path('app/imports/import_' . $progress->id);
+            if (!file_exists($importDir)) {
+                mkdir($importDir, 0755, true);
             }
 
             // Open final file for writing

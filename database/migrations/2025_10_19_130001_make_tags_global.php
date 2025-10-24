@@ -13,40 +13,31 @@ return new class extends Migration
     {
         // Check if user_id column exists before attempting modifications
         if (Schema::hasColumn('tags', 'user_id')) {
-            Schema::table('tags', function (Blueprint $table) {
-                // Drop the foreign key constraint first (before index)
-                // Foreign key name varies, use the column name
-                $table->dropForeign(['user_id']);
-            });
+            // Try to drop foreign key (may not exist)
+            try {
+                Schema::table('tags', function (Blueprint $table) {
+                    $table->dropForeign(['user_id']);
+                });
+            } catch (\Exception $e) {
+                // Foreign key doesn't exist, continue
+            }
 
-            // Drop constraints/indexes separately to avoid conflicts
-            $connection = Schema::getConnection();
-            $databaseName = $connection->getDatabaseName();
-
-            // Check and drop unique constraint if it exists
-            $uniqueExists = $connection->select(
-                "SELECT COUNT(*) as count FROM information_schema.statistics
-                 WHERE table_schema = ? AND table_name = 'tags' AND index_name = 'tags_name_user_id_unique'",
-                [$databaseName]
-            );
-
-            if ($uniqueExists[0]->count > 0) {
+            // Try to drop unique constraint (may not exist)
+            try {
                 Schema::table('tags', function (Blueprint $table) {
                     $table->dropUnique(['name', 'user_id']);
                 });
+            } catch (\Exception $e) {
+                // Unique constraint doesn't exist, continue
             }
 
-            // Check and drop user_id index if it exists
-            $indexExists = $connection->select(
-                "SELECT COUNT(*) as count FROM information_schema.statistics
-                 WHERE table_schema = ? AND table_name = 'tags' AND index_name = 'tags_user_id_index'",
-                [$databaseName]
-            );
-
-            if ($indexExists[0]->count > 0) {
+            // Try to drop index (may not exist)
+            try {
                 Schema::table('tags', function (Blueprint $table) {
                     $table->dropIndex(['user_id']);
                 });
+            } catch (\Exception $e) {
+                // Index doesn't exist, continue
             }
 
             // Drop the user_id column
@@ -55,9 +46,13 @@ return new class extends Migration
             });
 
             // Add a unique constraint on name only (tags are now global)
-            Schema::table('tags', function (Blueprint $table) {
-                $table->unique('name');
-            });
+            try {
+                Schema::table('tags', function (Blueprint $table) {
+                    $table->unique('name');
+                });
+            } catch (\Exception $e) {
+                // Unique constraint already exists, continue
+            }
         }
     }
 

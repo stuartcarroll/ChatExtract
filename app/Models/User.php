@@ -23,6 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -30,7 +31,7 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-    protected $guarded = ['is_admin', 'email_verified_at'];
+    protected $guarded = ['email_verified_at'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -66,7 +67,23 @@ class User extends Authenticatable
      */
     public function isAdmin(): bool
     {
-        return $this->is_admin ?? false;
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user is a chat user.
+     */
+    public function isChatUser(): bool
+    {
+        return $this->role === 'chat_user';
+    }
+
+    /**
+     * Check if user is view-only.
+     */
+    public function isViewOnly(): bool
+    {
+        return $this->role === 'view_only';
     }
 
     /**
@@ -94,6 +111,51 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the groups this user belongs to.
+     */
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class)->withPivot('added_by')->withTimestamps();
+    }
+
+    /**
+     * Get the groups created by this user.
+     */
+    public function createdGroups(): HasMany
+    {
+        return $this->hasMany(Group::class, 'created_by');
+    }
+
+    /**
+     * Get all tag access grants for this user.
+     */
+    public function tagAccess()
+    {
+        return $this->morphMany(TagAccess::class, 'accessable');
+    }
+
+    /**
+     * Get IDs of all tags the user can access.
+     * Returns a collection of tag IDs from direct access and group access.
+     */
+    public function accessibleTagIds()
+    {
+        // Direct tag access
+        $directAccess = $this->tagAccess()->pluck('tag_id');
+
+        // Tag access via groups
+        $userGroupIds = $this->groups()->pluck('groups.id');
+        $groupAccess = collect();
+        if ($userGroupIds->isNotEmpty()) {
+            $groupAccess = TagAccess::where('accessable_type', Group::class)
+                ->whereIn('accessable_id', $userGroupIds)
+                ->pluck('tag_id');
+        }
+
+        return $directAccess->merge($groupAccess)->unique();
+    }
+
+    /**
      * Get all chats the user has access to (owned + shared).
      */
     public function accessibleChats()
@@ -107,29 +169,41 @@ class User extends Authenticatable
      */
     public function accessibleChatIds()
     {
-        // Get owned chat IDs
+        // Admin: all chats
+        if ($this->isAdmin()) {
+            return Chat::pluck('id');
+        }
+
+        // View-only: ONLY chats with messages tagged with accessible tags
+        if ($this->isViewOnly()) {
+            $accessibleTagIds = $this->accessibleTagIds();
+            if ($accessibleTagIds->isEmpty()) {
+                return collect();
+            }
+
+            return Message::whereHas('tags', function($q) use ($accessibleTagIds) {
+                $q->whereIn('tags.id', $accessibleTagIds);
+            })->distinct()->pluck('chat_id');
+        }
+
+        // Chat User: owned + granted access
         $ownedIds = $this->ownedChats()->pluck('id');
 
-        // Get chats with direct user access via chat_access table
-        $directAccessIds = \App\Models\ChatAccess::where('accessable_type', self::class)
+        $directAccessIds = ChatAccess::where('accessable_type', self::class)
             ->where('accessable_id', $this->id)
             ->pluck('chat_id');
 
-        // Group access not currently supported
-        // $userGroupIds = \App\Models\GroupUser::where('user_id', $this->id)->pluck('group_id');
+        $userGroupIds = $this->groups()->pluck('groups.id');
         $groupAccessIds = collect();
-        // if ($userGroupIds->isNotEmpty()) {
-        //     $groupAccessIds = \App\Models\ChatAccess::where('accessable_type', \App\Models\Group::class)
-        //         ->whereIn('accessable_id', $userGroupIds)
-        //         ->pluck('chat_id');
-        // }
+        if ($userGroupIds->isNotEmpty()) {
+            $groupAccessIds = ChatAccess::where('accessable_type', Group::class)
+                ->whereIn('accessable_id', $userGroupIds)
+                ->pluck('chat_id');
+        }
 
-        // Legacy: Get shared chat IDs from old chat_user pivot table
         $legacySharedIds = $this->chats()->pluck('id');
 
-        // Merge and get unique IDs
-        return $ownedIds
-            ->merge($directAccessIds)
+        return $ownedIds->merge($directAccessIds)
             ->merge($groupAccessIds)
             ->merge($legacySharedIds)
             ->unique();

@@ -61,6 +61,11 @@ class ProcessChatImportJob implements ShouldQueue
             $progress->addLog("Starting import process");
             $progress->update(['started_at' => now()]);
 
+            // Check if file exists
+            if (!file_exists($this->filePath)) {
+                throw new \Exception("Import file not found at: {$this->filePath}. The file may have been deleted or moved.");
+            }
+
             // STAGE 1: Extract ZIP if needed
             if ($this->isZip) {
                 $progress->update(['status' => 'extracting']);
@@ -133,7 +138,17 @@ class ProcessChatImportJob implements ShouldQueue
             $progress->addLog("Starting WhatsApp chat file parsing");
             $progress->addLog("Reading file: " . basename($txtFilePath));
 
+            $fileSize = filesize($txtFilePath);
+            $progress->addLog("Chat file size: " . round($fileSize / 1024, 2) . " KB");
+
+            if ($fileSize > 1024 * 1024) { // > 1MB
+                $progress->addLog("Large file detected - this may take 1-2 minutes...");
+            }
+
+            $parseStartTime = microtime(true);
             $messages = $parser->parseFile($txtFilePath);
+            $parseEndTime = microtime(true);
+            $parseDuration = round($parseEndTime - $parseStartTime, 2);
 
             if (empty($messages)) {
                 throw new \Exception('No messages found in the file');
@@ -141,7 +156,8 @@ class ProcessChatImportJob implements ShouldQueue
 
             $messageCount = count($messages);
             $progress->update(['total_messages' => $messageCount]);
-            $progress->addLog("Successfully parsed {$messageCount} messages from chat");
+            $progress->addLog("Successfully parsed {$messageCount} messages in {$parseDuration} seconds");
+            $progress->addLog("Average: " . round($messageCount / $parseDuration, 0) . " messages/second");
             $progress->addLog("Detecting participants and media references...");
 
             // STAGE 3: Create chat
@@ -167,9 +183,17 @@ class ProcessChatImportJob implements ShouldQueue
             // STAGE 4: Import messages in chunks
             $progress->update(['status' => 'importing_messages']);
             $progress->addLog("Starting message import to database");
+            $estimatedImportTime = ceil($messageCount / 500) * 2; // Rough estimate: 2 seconds per 500 messages
             $progress->addLog("Importing {$messageCount} messages in chunks of 500...");
+            $progress->addLog("Estimated import time: ~{$estimatedImportTime} seconds");
+
+            $importStartTime = microtime(true);
             $this->importMessagesInChunks($chat, $messages, $progress);
-            $progress->addLog("All {$messageCount} messages imported successfully");
+            $importEndTime = microtime(true);
+            $importDuration = round($importEndTime - $importStartTime, 2);
+
+            $progress->addLog("All {$messageCount} messages imported in {$importDuration} seconds");
+            $progress->addLog("Import rate: " . round($messageCount / $importDuration, 0) . " messages/second");
 
             // STAGE 5: Process media files from ZIP if they exist
             if ($extractPath && file_exists($extractPath)) {
@@ -180,10 +204,26 @@ class ProcessChatImportJob implements ShouldQueue
                 $mediaCount = count(array_filter($mediaFiles, fn($f) => is_file($f) && !str_ends_with($f, '.txt')));
 
                 $progress->addLog("Found {$mediaCount} media files in ZIP archive");
-                $progress->addLog("Processing media files (matching with messages)...");
-                $this->processMediaFiles($chat, $extractPath, $progress);
-                $progress->addLog("Media processing completed - imported {$progress->processed_media} files");
-                $progress->addLog("Breakdown: {$progress->images_count} images, {$progress->videos_count} videos, {$progress->audio_count} audio files");
+
+                if ($mediaCount > 0) {
+                    $estimatedMediaTime = ceil($mediaCount / 10); // Rough estimate: 10 files per second
+                    $progress->addLog("Estimated processing time: ~{$estimatedMediaTime} seconds");
+                    $progress->addLog("Processing media files (copying and matching with messages)...");
+
+                    $mediaStartTime = microtime(true);
+                    $this->processMediaFiles($chat, $extractPath, $progress);
+                    $mediaEndTime = microtime(true);
+                    $mediaDuration = round($mediaEndTime - $mediaStartTime, 2);
+
+                    $progress->addLog("Media processing completed in {$mediaDuration} seconds");
+                    $progress->addLog("Imported {$progress->processed_media} / {$mediaCount} files");
+                    $progress->addLog("Breakdown: {$progress->images_count} images, {$progress->videos_count} videos, {$progress->audio_count} audio files");
+
+                    if ($progress->processed_media < $mediaCount) {
+                        $unmatched = $mediaCount - $progress->processed_media;
+                        $progress->addLog("Note: {$unmatched} media files could not be matched to messages");
+                    }
+                }
             }
 
             $progress->update([
@@ -314,7 +354,10 @@ class ProcessChatImportJob implements ShouldQueue
         Storage::disk('media')->makeDirectory($chatMediaDir);
 
         $mediaFiles = glob($mediaPath . '/*');
-        $progress->update(['total_media' => count(array_filter($mediaFiles, 'is_file'))]);
+        $totalMediaFiles = count(array_filter($mediaFiles, 'is_file'));
+        $progress->update(['total_media' => $totalMediaFiles]);
+        $processedCount = 0;
+        $logInterval = max(1, ceil($totalMediaFiles / 10)); // Log every 10% or at least every file if < 10 files
 
         foreach ($mediaFiles as $filePath) {
             if (is_file($filePath) && !str_ends_with($filePath, '.txt')) {
@@ -361,12 +404,21 @@ class ProcessChatImportJob implements ShouldQueue
                     }
 
                     $progress->increment('processed_media');
+                    $processedCount++;
+
+                    // Log progress at intervals
+                    if ($processedCount % $logInterval === 0 || $processedCount === $totalMediaFiles) {
+                        $percentage = round(($processedCount / $totalMediaFiles) * 100, 1);
+                        $progress->addLog("Media progress: {$processedCount}/{$totalMediaFiles} files ({$percentage}%)");
+                    }
 
                 } catch (\Exception $e) {
                     Log::error('Error processing media file', [
                         'file' => $filePath,
                         'error' => $e->getMessage(),
                     ]);
+                    $progress->increment('processed_media'); // Count failed files too
+                    $processedCount++;
                 }
             }
         }

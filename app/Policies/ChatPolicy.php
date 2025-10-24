@@ -18,39 +18,17 @@ class ChatPolicy
 
     /**
      * Determine whether the user can view the model.
+     *
+     * Handles all three roles automatically:
+     * - Admin: can view all chats
+     * - Chat user: can view owned + granted access chats
+     * - View-only: can only view chats with messages tagged with accessible tags
      */
     public function view(User $user, Chat $chat): bool
     {
-        // User can view if they own the chat
-        if ($chat->user_id === $user->id) {
-            return true;
-        }
-
-        // Check if user has direct access via chat_access table
-        $hasDirectAccess = $chat->access()
-            ->where('accessable_type', \App\Models\User::class)
-            ->where('accessable_id', $user->id)
-            ->exists();
-
-        if ($hasDirectAccess) {
-            return true;
-        }
-
-        // Group access not currently supported
-        // $userGroupIds = \App\Models\GroupUser::where('user_id', $user->id)->pluck('group_id');
-        // if ($userGroupIds->isNotEmpty()) {
-        //     $hasGroupAccess = $chat->access()
-        //         ->where('accessable_type', \App\Models\Group::class)
-        //         ->whereIn('accessable_id', $userGroupIds)
-        //         ->exists();
-        //
-        //     if ($hasGroupAccess) {
-        //         return true;
-        //     }
-        // }
-
-        // Legacy: Check old chat_user pivot table
-        return $chat->users()->where('user_id', $user->id)->exists();
+        // Use the accessibleChatIds method which handles all roles
+        $accessibleChatIds = $user->accessibleChatIds();
+        return $accessibleChatIds->contains($chat->id);
     }
 
     /**

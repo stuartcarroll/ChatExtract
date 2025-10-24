@@ -36,28 +36,33 @@
 
             <!-- Summary Stats -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-4">
-                <div class="p-3">
-                    <div class="flex items-center justify-between text-sm">
+                <div class="p-4">
+                    <div class="flex items-center justify-between text-sm mb-3">
                         <div>
                             <span class="text-gray-600">Total:</span>
                             <span class="font-semibold ml-1" id="total-audio">{{ $chats->sum('total_audio') }}</span>
                         </div>
                         <div>
-                            <span class="text-green-600">Transcribed:</span>
+                            <span class="text-green-600">✓ Transcribed:</span>
                             <span class="font-semibold ml-1" id="transcribed-count">{{ $chats->sum('transcribed') }}</span>
                             @if($chats->sum('total_audio') > 0)
-                            <span class="text-xs text-gray-500 ml-1">({{ round(($chats->sum('transcribed') / $chats->sum('total_audio')) * 100) }}%)</span>
+                            <span class="text-xs text-gray-500 ml-1" id="transcribed-percentage">({{ round(($chats->sum('transcribed') / $chats->sum('total_audio')) * 100) }}%)</span>
                             @endif
                         </div>
                         <div>
-                            <span class="text-blue-600">In Progress:</span>
+                            <span class="text-blue-600">⏳ In Progress:</span>
                             <span class="font-semibold ml-1" id="pending-count">{{ $chats->sum('pending') }}</span>
                         </div>
                         <div>
-                            <span class="text-gray-600">Not Started:</span>
+                            <span class="text-gray-600">⭕ Not Started:</span>
                             <span class="font-semibold ml-1" id="not-started-count">{{ $chats->sum('not_started') }}</span>
                         </div>
                     </div>
+                    @if($chats->sum('pending') > 0)
+                    <div class="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded">
+                        <strong>Processing Stage:</strong> Transcription jobs are queued and being processed by OpenAI Whisper API. Audio files are being converted to text in real-time.
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -124,19 +129,24 @@
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="space-y-1">
+                                                <div class="space-y-1 status-badges">
                                                     @if($chat['transcribed'] === $chat['total_audio'])
                                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                                             Complete
                                                         </span>
                                                     @elseif($chat['pending'] > 0)
-                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 animate-pulse">
                                                             <span class="pending">{{ $chat['pending'] }}</span> in progress
                                                         </span>
                                                     @else
                                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
                                                             <span class="not-started">{{ $chat['not_started'] }}</span> not started
                                                         </span>
+                                                    @endif
+                                                    @if($chat['transcribed'] > 0 && $chat['transcribed'] < $chat['total_audio'])
+                                                        <div class="text-xs text-gray-500 mt-1">
+                                                            <span class="transcribed">{{ $chat['transcribed'] }}</span> done
+                                                        </div>
                                                     @endif
                                                 </div>
                                             </td>
@@ -206,6 +216,21 @@
                         if (transcribedSpan) transcribedSpan.textContent = chatData.transcribed;
                         if (pendingSpan) pendingSpan.textContent = chatData.pending;
                         if (notStartedSpan) notStartedSpan.textContent = chatData.not_started;
+
+                        // Update status badges with animation for pending
+                        const statusBadges = row.querySelector('.status-badges');
+                        if (statusBadges && chatData.pending > 0) {
+                            const pendingBadge = statusBadges.querySelector('.animate-pulse');
+                            if (!pendingBadge && statusBadges.querySelector('.pending')) {
+                                // Add animation if not present
+                                const badge = statusBadges.querySelector('.px-2');
+                                if (badge) badge.classList.add('animate-pulse');
+                            }
+                        } else if (statusBadges && chatData.pending === 0) {
+                            // Remove animation when complete
+                            const badge = statusBadges.querySelector('.animate-pulse');
+                            if (badge) badge.classList.remove('animate-pulse');
+                        }
                     });
 
                     // Update summary stats
@@ -213,6 +238,13 @@
                     document.getElementById('transcribed-count').textContent = totalTranscribed.toLocaleString();
                     document.getElementById('pending-count').textContent = totalPending.toLocaleString();
                     document.getElementById('not-started-count').textContent = totalNotStarted.toLocaleString();
+
+                    // Update percentage
+                    const percentageEl = document.getElementById('transcribed-percentage');
+                    if (percentageEl && totalAudio > 0) {
+                        const percentage = Math.round((totalTranscribed / totalAudio) * 100);
+                        percentageEl.textContent = `(${percentage}%)`;
+                    }
 
                     // If no pending transcriptions, slow down polling
                     if (totalPending === 0) {

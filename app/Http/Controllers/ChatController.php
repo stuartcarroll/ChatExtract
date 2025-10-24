@@ -15,14 +15,13 @@ class ChatController extends Controller
     {
         $user = auth()->user();
 
-        // Get owned chats
-        // Optimized query to get all accessible chats
-        $chats = Chat::where('user_id', $user->id)
-            ->orWhereHas('access', function($q) use ($user) {
-                // Only user access is currently supported (no group access)
-                $q->where('accessable_type', \App\Models\User::class)
-                  ->where('accessable_id', $user->id);
-            })
+        // Get all accessible chats based on user role
+        // - Admin: all chats
+        // - View-only: only chats with messages tagged with accessible tags
+        // - Chat user: owned + granted access
+        $accessibleChatIds = $user->accessibleChatIds();
+
+        $chats = Chat::whereIn('id', $accessibleChatIds)
             ->withCount('messages')
             ->latest()
             ->paginate(20);
@@ -91,8 +90,16 @@ class ChatController extends Controller
         $statistics['audio_files'] = $audioStats->total ?? 0;
         $statistics['transcribed_audio'] = $audioStats->transcribed ?? 0;
 
-        // Get all tags for tagging interface (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         return view('chats.show', compact('chat', 'messages', 'statistics', 'highlightMessageId', 'tags'));
     }
@@ -274,8 +281,16 @@ class ChatController extends Controller
             'audio' => $countsRaw->audio ?? 0,
         ];
 
-        // Get all tags for tagging interface (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         return view('chats.gallery', compact('chat', 'media', 'type', 'counts', 'tags', 'sort'));
     }
@@ -341,8 +356,16 @@ class ChatController extends Controller
         // Get participants for filter dropdown
         $participants = $chat->participants()->get();
 
-        // Get all tags for filter dropdown (global)
-        $tags = Tag::orderBy('name')->get();
+        // Get tags based on user role
+        // - Admin and chat_user: all tags
+        // - View-only: only tags they have access to
+        $user = auth()->user();
+        if ($user->isViewOnly()) {
+            $accessibleTagIds = $user->accessibleTagIds();
+            $tags = Tag::whereIn('id', $accessibleTagIds)->orderBy('name')->get();
+        } else {
+            $tags = Tag::orderBy('name')->get();
+        }
 
         return view('chats.show', compact('chat', 'messages', 'statistics', 'participants', 'tags'));
     }

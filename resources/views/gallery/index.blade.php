@@ -73,6 +73,11 @@
                     <button onclick="openTagSheet()" style="background-color: #16a34a; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-green-700">
                         🏷️ All Tags
                     </button>
+                    @if(auth()->user()->isAdmin())
+                    <button onclick="transcribeSelected()" style="background-color: #8b5cf6; color: white;" class="px-4 py-2 text-sm rounded-lg font-medium hover:bg-purple-700">
+                        🎤 Transcribe Audio
+                    </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -470,6 +475,71 @@
             } catch (e) {
                 console.error('Export failed:', e);
                 alert('Export failed. Please try again.');
+            }
+        }
+
+        async function transcribeSelected() {
+            if (selected.size === 0) {
+                alert('Please select audio files to transcribe');
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const mediaIds = Array.from(selected);
+
+            // Filter to only audio items
+            const audioItems = Array.from(document.querySelectorAll('.item-checkbox:checked')).filter(cb => {
+                const card = cb.closest('[data-type]');
+                return card && card.dataset.type === 'audio';
+            });
+
+            if (audioItems.length === 0) {
+                alert('No audio files selected. Please select audio files to transcribe.');
+                return;
+            }
+
+            if (!confirm(`Transcribe ${audioItems.length} audio file(s)? This may take a while.`)) {
+                return;
+            }
+
+            const count = document.getElementById('selection-count');
+            const originalText = count.textContent;
+            count.textContent = '🎤 Transcribing...';
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const checkbox of audioItems) {
+                const mediaId = checkbox.value;
+
+                try {
+                    const response = await fetch(`/media/${mediaId}/transcribe`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error(`Failed to transcribe media ${mediaId}`);
+                    }
+                } catch (e) {
+                    errorCount++;
+                    console.error(`Error transcribing media ${mediaId}:`, e);
+                }
+            }
+
+            count.textContent = originalText;
+
+            if (errorCount === 0) {
+                alert(`Successfully queued ${successCount} audio file(s) for transcription. Check the Transcription Dashboard for progress.`);
+            } else {
+                alert(`Queued ${successCount} file(s) for transcription. ${errorCount} failed. Check console for details.`);
             }
         }
 
